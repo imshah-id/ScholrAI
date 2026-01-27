@@ -1,0 +1,68 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String      @id @default(uuid())
+  email        String      @unique
+  fullName     String
+  passwordHash String
+  createdAt    DateTime    @default(now())
+  profile      Profile?
+  shortlist    Shortlist[]
+}
+
+model Profile {
+  id                 String  @id @default(uuid())
+  userId             String  @unique
+  user               User    @relation(fields: [userId], references: [id])
+  targetDegree       String
+  targetIntake       String
+  gpa                String
+  englishTest        String?
+  testScore          String?
+  budget             String
+  preferredCountries String // Stored as JSON string
+  readinessScore     Int     @default(0)
+  currentStage       String  @default("DISCOVERY") // ENUM: "PROFILE", "DISCOVERY", "SHORTLIST", "GUIDANCE"
+}
+
+model University {
+  id             String      @id @default(uuid())
+  name           String
+  location       String
+  country        String
+  rank           Int
+  fees           String
+  acceptanceRate String
+  tags           String // JSON string of tags
+  shortlistedBy  Shortlist[]
+}
+
+model Shortlist {
+  id           String     @id @default(uuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id])
+  universityId String
+  university   University @relation(fields: [universityId], references: [id])
+  isLocked     Boolean        @default(false)
+  createdAt    DateTime       @default(now())
+  guidanceTasks GuidanceTask[]
+
+  @@unique([userId, universityId])
+}
+
+model GuidanceTask {
+  id          String    @id @default(uuid())
+  shortlistId String
+  shortlist   Shortlist @relation(fields: [shortlistId], references: [id], onDelete: Cascade)
+  title       String
+  type        String    // Essay, Admin, Documents
+  status      String    @default("pending") // pending, completed
+  dueDate     String?   // mocked for now, or DateTime
+}
