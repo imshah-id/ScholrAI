@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { User, Book, Calculator, MapPin, Edit2 } from "lucide-react";
 import { useState, useEffect } from "react";
+import EditProfileModal from "@/components/dashboard/EditProfileModal";
 
 export default function ProfilePage() {
   const [user, setUser] = useState<any>(null);
@@ -41,6 +42,54 @@ export default function ProfilePage() {
     fetchUser();
   }, []);
 
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  const handleSave = async (updatedData: any) => {
+    // Update local state immediately
+    setUser((prev: any) => ({
+      ...prev,
+      degree: updatedData.targetDegree,
+      intake: updatedData.targetIntake,
+      gpa: updatedData.gpa,
+      englishTest: updatedData.englishTest,
+      testScore: updatedData.testScore,
+      budget: updatedData.budget,
+      countries: updatedData.preferredCountries,
+    }));
+
+    // Show success notification
+    setShowSuccess(true);
+    setTimeout(() => setShowSuccess(false), 3000);
+
+    // Refresh data to get updated profile strength
+    setTimeout(async () => {
+      try {
+        const res = await fetch("/api/user/me");
+        if (res.ok) {
+          const data = await res.json();
+          let countries = [];
+          try {
+            countries = JSON.parse(data.preferredCountries || "[]");
+          } catch (e) {
+            countries = data.preferredCountries
+              ? [data.preferredCountries]
+              : [];
+          }
+          setUser({
+            ...data,
+            name: data.fullName,
+            degree: data.targetDegree,
+            intake: data.targetIntake,
+            countries: countries,
+          });
+        }
+      } catch (e) {
+        console.error("Refresh failed", e);
+      }
+    }, 500);
+  };
+
   if (loading) return <div className="text-white">Loading profile...</div>;
   if (!user) return <div className="text-white">Failed to load profile</div>;
 
@@ -52,10 +101,47 @@ export default function ProfilePage() {
     >
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">My Profile</h1>
-        <button className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white px-4 py-2 rounded-lg transition-colors border border-white/10">
+        <button
+          onClick={() => setIsEditOpen(true)}
+          className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white px-4 py-2 rounded-lg transition-all border border-white/10 hover:shadow-lg hover:shadow-white/5 hover:scale-105 active:scale-95"
+        >
           <Edit2 className="w-4 h-4" /> Edit Profile
         </button>
       </div>
+
+      {/* Success Notification */}
+      {showSuccess && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-green-500/20 border border-green-500/30 text-green-400 px-4 py-3 rounded-lg flex items-center gap-3"
+        >
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M5 13l4 4L19 7"
+            />
+          </svg>
+          <span className="font-medium">
+            Profile updated successfully! Your match scores are being
+            recalculated.
+          </span>
+        </motion.div>
+      )}
+
+      <EditProfileModal
+        isOpen={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        user={user}
+        onSave={handleSave}
+      />
 
       {/* Main Info Card */}
       <div className="glass p-8 rounded-2xl border border-white/5 flex items-start gap-6">
@@ -124,7 +210,9 @@ export default function ProfilePage() {
             <div>
               <div className="text-xs text-gray-500 uppercase">Tests</div>
               <div className="text-lg font-medium">
-                {user.englishTest || "None"}
+                {user.englishTest && user.englishTest !== "None"
+                  ? `${user.englishTest}: ${user.testScore || "N/A"}`
+                  : "None"}
               </div>
             </div>
             <div>

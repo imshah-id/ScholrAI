@@ -24,6 +24,7 @@ model Profile {
   targetDegree       String
   targetIntake       String
   gpa                String
+  gpaScale           String  @default("4.0")
   englishTest        String?
   testScore          String?
   budget             String

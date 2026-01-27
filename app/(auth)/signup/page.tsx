@@ -4,7 +4,15 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Mail, Lock, ArrowRight, User } from "lucide-react";
+import {
+  Mail,
+  Lock,
+  ArrowRight,
+  User,
+  CheckCircle,
+  AlertCircle,
+} from "lucide-react";
+import { toast } from "sonner";
 
 export default function SignupPage() {
   const [formData, setFormData] = useState({
@@ -14,16 +22,21 @@ export default function SignupPage() {
     confirmPassword: "",
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  // Removed local error states in favor of toast
   const router = useRouter();
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    setError("");
     setLoading(true);
 
+    if (formData.password.length < 6) {
+      toast.error("Password must be at least 6 characters long");
+      setLoading(false);
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
+      toast.error("Passwords do not match");
       setLoading(false);
       return;
     }
@@ -44,7 +57,12 @@ export default function SignupPage() {
       if (contentType && contentType.indexOf("application/json") !== -1) {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Signup failed");
-        router.push("/onboarding");
+
+        toast.success("Account created successfully! Redirecting...");
+
+        setTimeout(() => {
+          router.push("/onboarding");
+        }, 1500);
       } else {
         // If not JSON, it's likely a server error page
         const text = await res.text();
@@ -54,10 +72,10 @@ export default function SignupPage() {
         );
       }
     } catch (err: any) {
-      setError(err.message);
-    } finally {
+      toast.error(err.message || "Failed to create account");
       setLoading(false);
     }
+    // Do not set loading false in success case to prevent UI flicker
   };
 
   return (
@@ -75,11 +93,7 @@ export default function SignupPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm p-3 rounded-lg text-center">
-            {error}
-          </div>
-        )}
+        {/* Success/Error states removed in favor of toasts */}
         <div className="space-y-4">
           <div className="relative group">
             <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-teal-400 transition-colors h-5 w-5" />
@@ -135,14 +149,15 @@ export default function SignupPage() {
           </div>
         </div>
 
-        <button
+        <motion.button
+          whileTap={{ scale: 0.98 }}
           type="submit"
           disabled={loading}
           className="w-full bg-gradient-to-r from-primary to-gold-500 hover:to-gold-400 text-navy-900 font-bold py-3.5 rounded-xl transition-all hover:shadow-[0_0_20px_rgba(250,204,21,0.3)] hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? "Creating Account..." : "Create Account"}{" "}
           <ArrowRight className="w-5 h-5" />
-        </button>
+        </motion.button>
       </form>
 
       <div className="mt-8 text-center text-sm text-gray-400">

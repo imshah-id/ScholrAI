@@ -32,13 +32,43 @@ export async function POST(req: Request) {
     if (!session)
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { universityId } = await req.json();
+    const { universityId, name } = await req.json();
+
+    let finalUniversityId = universityId;
+
+    // If name provided instead of ID (from AI Counsellor), look it up
+    if (!universityId && name) {
+      const university = await prisma.university.findFirst({
+        where: {
+          name: {
+            contains: name,
+            mode: "insensitive",
+          },
+        },
+      });
+
+      if (!university) {
+        return NextResponse.json(
+          { error: "University not found" },
+          { status: 404 },
+        );
+      }
+
+      finalUniversityId = university.id;
+    }
+
+    if (!finalUniversityId) {
+      return NextResponse.json(
+        { error: "University ID or name required" },
+        { status: 400 },
+      );
+    }
 
     const existing = await prisma.shortlist.findUnique({
       where: {
         userId_universityId: {
           userId: session.userId,
-          universityId: universityId,
+          universityId: finalUniversityId,
         },
       },
     });
@@ -51,7 +81,7 @@ export async function POST(req: Request) {
     const shortlistItem = await prisma.shortlist.create({
       data: {
         userId: session.userId,
-        universityId: universityId,
+        universityId: finalUniversityId,
       },
       include: { university: true },
     });
@@ -98,41 +128,76 @@ export async function PATCH(req: Request) {
       data: { isLocked },
     });
 
-    // If locking, we should ideally seed the guidance tasks for this university if they don't exist
+    // If locking, generate comprehensive guidance tasks for this university
     if (isLocked) {
+      // Get university details for customized tasks
+      const university = await prisma.university.findUnique({
+        where: { id: universityId },
+      });
+
       // Check if tasks exist
       const count = await prisma.guidanceTask.count({
         where: { shortlistId: updated.id },
       });
-      if (count === 0) {
-        const DEFAULT_TASKS = [
+
+      if (count === 0 && university) {
+        // Helper to formatting date
+        const formatDate = (daysFromNow: number) => {
+          const date = new Date();
+          date.setDate(date.getDate() + daysFromNow);
+          return date.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          });
+        };
+
+        const COMPREHENSIVE_TASKS = [
           {
-            title: "Draft Personal Statement",
+            title: `Write Statement of Purpose for ${university.name}`,
             type: "Essay",
             status: "pending",
-            dueDate: "2 weeks",
+            dueDate: formatDate(14), // 2 weeks
           },
           {
-            title: "Request Letter of Recommendation",
+            title: "Prepare 2-3 Letters of Recommendation",
+            type: "Documents",
+            status: "pending",
+            dueDate: formatDate(21), // 3 weeks
+          },
+          {
+            title: "Request Official Transcripts",
+            type: "Documents",
+            status: "pending",
+            dueDate: formatDate(7), // 1 week
+          },
+          {
+            title: "Upload English Test Scores (IELTS/TOEFL)",
+            type: "Documents",
+            status: "pending",
+            dueDate: formatDate(14), // 2 weeks
+          },
+          {
+            title: `Complete ${university.name} Application Form`,
             type: "Admin",
             status: "pending",
-            dueDate: "1 month",
+            dueDate: formatDate(28), // 4 weeks
           },
           {
-            title: "Upload Official Transcripts",
+            title: "Prepare Financial Documents & Bank Statements",
             type: "Documents",
             status: "pending",
-            dueDate: "1 week",
+            dueDate: formatDate(21), // 3 weeks
           },
           {
-            title: "Finalize Resume / CV",
+            title: "Update Resume/CV",
             type: "Documents",
             status: "pending",
-            dueDate: "3 days",
+            dueDate: formatDate(7), // 1 week
           },
         ];
 
-        for (const task of DEFAULT_TASKS) {
+        for (const task of COMPREHENSIVE_TASKS) {
           await prisma.guidanceTask.create({
             data: {
               shortlistId: updated.id,

@@ -48,6 +48,15 @@ body {
   font-family: var(--font-sans);
 }
 
+/* Global Pointer Cursor for Interactive Elements */
+button,
+[role="button"],
+a,
+input[type="submit"],
+input[type="button"] {
+  cursor: pointer;
+}
+
 /* Glassmorphism Utilities */
 .glass {
   background: rgba(15, 23, 42, 0.6);

@@ -89,7 +89,7 @@ export default function CounsellorPage() {
   };
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex flex-col glass rounded-2xl border border-white/5 overflow-hidden">
+    <div className="h-[calc(100vh-12rem)] md:h-[calc(100vh-8rem)] flex flex-col glass rounded-2xl border border-white/5 overflow-hidden">
       {/* Header */}
       <div className="p-4 border-b border-white/10 bg-navy-900/50 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -253,8 +253,49 @@ export default function CounsellorPage() {
                       ),
                     }}
                   >
-                    {msg.content}
+                    {msg.content.replace(/\[SHORTLIST: (.*?)\]/g, "")}
                   </ReactMarkdown>
+
+                  {/* Action Buttons extracted from content */}
+                  {(() => {
+                    const regex = /\[SHORTLIST: (.*?)\]/g;
+                    const matches = [...msg.content.matchAll(regex)];
+                    if (matches.length > 0) {
+                      return (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {matches.map((match, i) => (
+                            <button
+                              key={i}
+                              onClick={() => {
+                                // Quick fetch to shortlist
+                                fetch("/api/shortlist", {
+                                  method: "POST",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                  },
+                                  body: JSON.stringify({
+                                    universityId: "PLACEHOLDER_ID", // Logic gap: AI doesn't know ID.
+                                    // Fix: We need an API that accepts NAME or matches it.
+                                    // For MVP, we'll try to find by name in the backend or just alert.
+                                    name: match[1],
+                                  }),
+                                }).then((res) => {
+                                  if (res.ok) alert(`Shortlisted ${match[1]}!`);
+                                  else
+                                    alert("Could not find university details.");
+                                });
+                              }}
+                              className="bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 text-xs font-bold px-3 py-2 rounded-lg border border-teal-500/30 flex items-center gap-2 transition-colors"
+                            >
+                              <Sparkles className="w-3 h-3" /> Shortlist{" "}
+                              {match[1]}
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
               ) : (
                 msg.content

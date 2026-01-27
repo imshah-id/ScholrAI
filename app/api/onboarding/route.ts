@@ -14,6 +14,7 @@ export async function POST(req: Request) {
       targetDegree,
       targetIntake,
       gpa,
+      gpaScale,
       englishTest,
       testScore,
       budget,
@@ -27,11 +28,12 @@ export async function POST(req: Request) {
         targetDegree,
         targetIntake,
         gpa,
+        gpaScale: gpaScale || "4.0",
         englishTest,
         testScore,
         budget,
-        preferredCountries: JSON.stringify(preferredCountries), // Store array as JSON
-        currentStage: "DISCOVERY", // Advance stage
+        preferredCountries: JSON.stringify(preferredCountries),
+        currentStage: "DISCOVERY",
       },
     });
 

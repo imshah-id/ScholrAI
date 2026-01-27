@@ -11,6 +11,7 @@ type OnboardingData = {
   targetDegree: string;
   targetIntake: string;
   gpa: string;
+  gpaScale: string; // NEW: Track GPA scale
   englishTest: string;
   testScore: string;
   budget: string;
@@ -25,7 +26,8 @@ export default function OnboardingPage() {
     targetDegree: "Masters",
     targetIntake: "Fall 2026",
     gpa: "",
-    englishTest: "IELTS",
+    gpaScale: "4.0", // Default scale
+    englishTest: "None",
     testScore: "",
     budget: "20k-40k",
     preferredCountries: [],
@@ -38,6 +40,87 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false);
 
   const nextStep = async () => {
+    // Validation Logic
+    if (step === 2) {
+      // Validate GPA
+      if (!data.gpa || data.gpa.trim() === "") {
+        alert("Please enter your GPA/Percentage before continuing.");
+        return;
+      }
+
+      // Validate GPA is numeric
+      const gpaValue = parseFloat(data.gpa);
+      if (isNaN(gpaValue)) {
+        alert("Please enter a valid numeric GPA value.");
+        return;
+      }
+
+      // Validate based on scale
+      if (data.gpaScale === "4.0" && (gpaValue < 0 || gpaValue > 4.0)) {
+        alert("GPA on 4.0 scale must be between 0.0 and 4.0");
+        return;
+      }
+      if (data.gpaScale === "5.0" && (gpaValue < 0 || gpaValue > 5.0)) {
+        alert("GPA on 5.0 scale must be between 0.0 and 5.0");
+        return;
+      }
+      if (data.gpaScale === "10.0" && (gpaValue < 0 || gpaValue > 10.0)) {
+        alert("GPA on 10.0 scale must be between 0.0 and 10.0");
+        return;
+      }
+      if (data.gpaScale === "Percentage" && (gpaValue < 0 || gpaValue > 100)) {
+        alert("Percentage must be between 0 and 100");
+        return;
+      }
+      // Validate English test score if test is selected
+      if (
+        data.englishTest !== "None" &&
+        (!data.testScore || data.testScore.trim() === "")
+      ) {
+        alert("Please enter your test score or select 'None'.");
+        return;
+      }
+
+      // Validate English test score ranges
+      if (data.englishTest !== "None" && data.testScore) {
+        const testScoreValue = parseFloat(data.testScore);
+        if (isNaN(testScoreValue)) {
+          alert("Please enter a valid numeric test score.");
+          return;
+        }
+
+        if (
+          data.englishTest === "IELTS" &&
+          (testScoreValue < 0 || testScoreValue > 9)
+        ) {
+          alert("IELTS score must be between 0 and 9");
+          return;
+        }
+        if (
+          data.englishTest === "TOEFL" &&
+          (testScoreValue < 0 || testScoreValue > 120)
+        ) {
+          alert("TOEFL score must be between 0 and 120");
+          return;
+        }
+        if (
+          data.englishTest === "Duolingo" &&
+          (testScoreValue < 0 || testScoreValue > 160)
+        ) {
+          alert("Duolingo score must be between 0 and 160");
+          return;
+        }
+      }
+    }
+
+    if (step === 3) {
+      // Validate preferred countries
+      if (data.preferredCountries.length === 0) {
+        alert("Please select at least one preferred country.");
+        return;
+      }
+    }
+
     if (step < 3) {
       setStep(step + 1);
     } else {
@@ -112,7 +195,8 @@ export default function OnboardingPage() {
                     </label>
                     <div className="grid grid-cols-2 gap-4">
                       {["Bachelors", "Masters", "PhD", "MBA"].map((deg) => (
-                        <button
+                        <motion.button
+                          whileTap={{ scale: 0.98 }}
                           key={deg}
                           onClick={() => updateData("targetDegree", deg)}
                           className={`p-4 rounded-xl border text-left transition-all ${
@@ -127,7 +211,7 @@ export default function OnboardingPage() {
                               <Check className="w-4 h-4" />
                             )}
                           </div>
-                        </button>
+                        </motion.button>
                       ))}
                     </div>
                   </div>
@@ -143,10 +227,26 @@ export default function OnboardingPage() {
                         updateData("targetIntake", e.target.value)
                       }
                     >
-                      <option>Fall 2025</option>
-                      <option>Spring 2026</option>
-                      <option>Fall 2026</option>
+                      <optgroup label="2026">
+                        <option>Spring 2026</option>
+                        <option>Summer 2026</option>
+                        <option>Fall 2026</option>
+                        <option>Winter 2026</option>
+                      </optgroup>
+                      <optgroup label="2027">
+                        <option>Spring 2027</option>
+                        <option>Summer 2027</option>
+                        <option>Fall 2027</option>
+                        <option>Winter 2027</option>
+                      </optgroup>
+                      <optgroup label="2028">
+                        <option>Spring 2028</option>
+                        <option>Fall 2028</option>
+                      </optgroup>
                     </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Select when you plan to start your studies
+                    </p>
                   </div>
                 </div>
               </motion.div>
@@ -164,15 +264,67 @@ export default function OnboardingPage() {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Previous GPA / Percentage
+                      GPA / Academic Score
                     </label>
+
+                    {/* GPA Scale Selector */}
+                    <div className="flex gap-3 mb-3">
+                      {["4.0", "5.0", "10.0", "Percentage"].map((scale) => (
+                        <motion.button
+                          whileTap={{ scale: 0.95 }}
+                          key={scale}
+                          type="button"
+                          onClick={() => {
+                            updateData("gpaScale", scale);
+                            updateData("gpa", "");
+                          }}
+                          className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+                            data.gpaScale === scale
+                              ? "border-teal-400 bg-teal-400/10 text-teal-400"
+                              : "border-white/10 bg-navy-900/50 hover:bg-navy-700 text-gray-400"
+                          }`}
+                        >
+                          {scale === "Percentage" ? "%" : scale}
+                        </motion.button>
+                      ))}
+                    </div>
+
                     <input
-                      type="text"
-                      placeholder="e.g. 3.8/4.0 or 85%"
+                      type="number"
+                      step="0.01"
+                      placeholder={
+                        data.gpaScale === "4.0"
+                          ? "e.g. 3.8"
+                          : data.gpaScale === "5.0"
+                            ? "e.g. 4.5"
+                            : data.gpaScale === "10.0"
+                              ? "e.g. 8.5"
+                              : "e.g. 85"
+                      }
                       className="w-full bg-navy-900 border border-white/10 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/50 outline-none"
                       value={data.gpa}
                       onChange={(e) => updateData("gpa", e.target.value)}
+                      max={
+                        data.gpaScale === "4.0"
+                          ? 4.0
+                          : data.gpaScale === "5.0"
+                            ? 5.0
+                            : data.gpaScale === "10.0"
+                              ? 10.0
+                              : 100
+                      }
+                      min={0}
                     />
+                    <p className="text-xs text-gray-500 mt-1">
+                      {data.gpaScale === "4.0" &&
+                        "Enter on 4.0 scale (0.0 - 4.0)"}
+                      {data.gpaScale === "5.0" &&
+                        "Enter on 5.0 scale (0.0 - 5.0)"}
+                      {data.gpaScale === "10.0" &&
+                        "Enter on 10.0 scale (0.0 - 10.0)"}
+                      {data.gpaScale === "Percentage" &&
+                        "Enter percentage (0 - 100)"}
+                    </p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -183,14 +335,16 @@ export default function OnboardingPage() {
                       <select
                         className="w-full bg-navy-900 border border-white/10 rounded-xl px-4 py-3 outline-none"
                         value={data.englishTest}
-                        onChange={(e) =>
-                          updateData("englishTest", e.target.value)
-                        }
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          updateData("englishTest", val);
+                          if (val === "None") updateData("testScore", "");
+                        }}
                       >
+                        <option>None</option>
                         <option>IELTS</option>
                         <option>TOEFL</option>
                         <option>Duolingo</option>
-                        <option>None</option>
                       </select>
                     </div>
                     <div>
@@ -199,15 +353,27 @@ export default function OnboardingPage() {
                       </label>
                       <input
                         type="text"
-                        placeholder="e.g. 7.5"
-                        className="w-full bg-navy-900 border border-white/10 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/50 outline-none"
+                        placeholder={
+                          data.englishTest === "None" ? "N/A" : "e.g. 7.5"
+                        }
+                        className={`w-full bg-navy-900 border border-white/10 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/50 outline-none ${
+                          data.englishTest === "None"
+                            ? "opacity-50 cursor-not-allowed"
+                            : ""
+                        }`}
                         value={data.testScore}
                         onChange={(e) =>
                           updateData("testScore", e.target.value)
                         }
+                        disabled={data.englishTest === "None"}
                       />
                     </div>
                   </div>
+                  {data.englishTest !== "None" && !data.testScore && (
+                    <div className="text-red-400 text-xs">
+                      * Score is required for {data.englishTest}
+                    </div>
+                  )}
                 </div>
               </motion.div>
             )}
@@ -228,7 +394,8 @@ export default function OnboardingPage() {
                     </label>
                     <div className="grid grid-cols-2 gap-3">
                       {["< 20k", "20k-40k", "40k-60k", "60k+"].map((b) => (
-                        <button
+                        <motion.button
+                          whileTap={{ scale: 0.95 }}
                           key={b}
                           onClick={() => updateData("budget", b)}
                           className={`p-3 rounded-xl border text-center transition-all ${
@@ -238,7 +405,7 @@ export default function OnboardingPage() {
                           }`}
                         >
                           {b} USD
-                        </button>
+                        </motion.button>
                       ))}
                     </div>
                   </div>
@@ -253,7 +420,8 @@ export default function OnboardingPage() {
                           const isSelected =
                             data.preferredCountries.includes(country);
                           return (
-                            <button
+                            <motion.button
+                              whileTap={{ scale: 0.95 }}
                               key={country}
                               onClick={() => {
                                 const newCountries = isSelected
@@ -270,7 +438,7 @@ export default function OnboardingPage() {
                               }`}
                             >
                               {country}
-                            </button>
+                            </motion.button>
                           );
                         },
                       )}
@@ -295,7 +463,8 @@ export default function OnboardingPage() {
               <ChevronLeft className="w-5 h-5" /> Back
             </button>
 
-            <button
+            <motion.button
+              whileTap={{ scale: 0.98 }}
               onClick={nextStep}
               disabled={loading}
               className="flex items-center gap-2 bg-gradient-to-r from-primary to-gold-500 text-navy-900 font-bold px-8 py-3 rounded-xl hover:shadow-[0_0_20px_rgba(250,204,21,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
@@ -306,7 +475,7 @@ export default function OnboardingPage() {
                   ? "Complete Profile"
                   : "Continue"}{" "}
               {!loading && <ChevronRight className="w-5 h-5" />}
-            </button>
+            </motion.button>
           </div>
         </div>
       </div>

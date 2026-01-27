@@ -32,7 +32,13 @@ CRITICAL RESPONSE GUIDELINES:
    - Use the provided user profile (GPA, budget, target country) to tailor your advice.
    - If context is missing, ask clarifying questions.
 
-4. **Refusal Strategy**:
+4. **Actionable Recommendations**:
+   - If you recommend a specific university that seems like a good fit, enable the user to shortlist it easily.
+   - Use the format: "[SHORTLIST: University Name]" at the end of your sentence.
+   - Example response: "Stanford is a great reach for you. [SHORTLIST: Stanford University]"
+   - Only use this when you are explicitly recommending a university.
+
+5. **Refusal Strategy**:
    - If the question is off-topic, provide a *short* pivot without a lecture.
    - Bad: "I apologize but I cannot answer that because I am a study abroad counsellor..."
    - Good: "I focus on your educational goals. Usage of that topic is outside my scope, but I can help you with [University/Scholarship/Essay]."
@@ -71,7 +77,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
     }
 
-    const { message, messages } = payload;
+    const { message, messages = [] } = payload;
     console.log("Received message:", message);
     console.log("History length:", messages?.length);
 
@@ -86,9 +92,23 @@ export async function POST(req: Request) {
         return null;
       });
 
+    // Fetch locked shortlist (University + Guidance Tasks)
+    const lockedShortlist = await prisma.shortlist
+      .findFirst({
+        where: { userId: session.userId, isLocked: true },
+        include: {
+          university: true,
+          guidanceTasks: true,
+        },
+      })
+      .catch((e) => {
+        console.error("Shortlist fetch error:", e);
+        return null;
+      });
+
     let contextPrompt = "";
     if (profile) {
-      contextPrompt = `
+      contextPrompt += `
       User Profile Context:
       Name: ${profile.user.fullName}
       Target Degree: ${profile.targetDegree}
@@ -97,6 +117,32 @@ export async function POST(req: Request) {
       Budget: ${profile.budget}
       Preferred Countries: ${profile.preferredCountries}
       `;
+    }
+
+    if (
+      lockedShortlist &&
+      lockedShortlist.university &&
+      lockedShortlist.guidanceTasks
+    ) {
+      const uni = lockedShortlist.university;
+      const tasks = lockedShortlist.guidanceTasks
+        .map(
+          (t: any) =>
+            `- [${t.status === "completed" ? "X" : " "}] ${t.title} (${t.type})`,
+        )
+        .join("\n");
+
+      contextPrompt += `
+        \nCURRENT APPLICATION STATUS:
+        Target University: ${uni.name} in ${uni.country}
+        
+        Outstanding Guidance Checklist:
+        ${tasks}
+        
+        INSTRUCTION: references these specific tasks when offering help. If a task is pending, offer specific advice for it.
+        `;
+    } else {
+      contextPrompt += `\nNote: The user has NOT selected a final university yet. Encourage them to shortlist and lock a university to get specific guidance.`;
     }
 
     // Creating model instance inside request to ensure env var is picked up if hot-loaded

@@ -3,22 +3,36 @@
 import Link from "next/link";
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { useRouter } from "next/navigation";
-import { Mail, Lock, LogIn } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Mail, Lock, LogIn, CheckCircle, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [formData, setFormData] = useState({
-    email: "m@example.com",
+    email: "",
     password: "",
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  // Removed local error/success states in favor of toast
+
+  // Check for messages in URL
+  const message = searchParams.get("message");
+
+  // Clean URL messages - display as toast if needed?
+  // For now just reading params is fine.
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
     setLoading(true);
+
+    // Basic client-side validation
+    if (!formData.email.includes("@")) {
+      toast.error("Please enter a valid email address");
+      setLoading(false);
+      return;
+    }
 
     try {
       const res = await fetch("/api/auth/login", {
@@ -33,10 +47,12 @@ export default function LoginPage() {
         throw new Error(data.error || "Login failed");
       }
 
-      router.push("/dashboard");
+      toast.success("Login successful! Redirecting...");
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 1000);
     } catch (err: any) {
-      setError(err.message);
-    } finally {
+      toast.error(err.message || "Invalid credentials");
       setLoading(false);
     }
   };
@@ -58,10 +74,16 @@ export default function LoginPage() {
       </div>
 
       <form onSubmit={handleLogin} className="space-y-6">
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm p-3 rounded-lg text-center">
-            {error}
-          </div>
+        {/* URL Messages - Handled via Toasts now if needed or keep subtle */}
+        {message === "session_expired" && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-sm p-3 rounded-lg flex items-center gap-2 mb-4"
+          >
+            <AlertCircle className="w-4 h-4" />
+            Your session has expired. Please log in again.
+          </motion.div>
         )}
         <div className="space-y-4">
           <div className="relative group">
@@ -100,7 +122,8 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <button
+        <motion.button
+          whileTap={{ scale: 0.98 }}
           type="submit"
           disabled={loading}
           className="w-full bg-gradient-to-r from-teal-500 to-teal-400 hover:to-teal-300 text-navy-900 font-bold py-3.5 rounded-xl transition-all hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -112,7 +135,7 @@ export default function LoginPage() {
               <LogIn className="w-5 h-5" /> Sign In
             </>
           )}
-        </button>
+        </motion.button>
       </form>
 
       <div className="mt-8 text-center text-sm text-gray-400">

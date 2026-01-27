@@ -10,13 +10,17 @@ import {
   ListTodo,
   MessageSquare,
   LogOut,
+  GraduationCap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 
 export function Sidebar() {
   const pathname = usePathname();
   const [user, setUser] = useState<any>(null);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   useEffect(() => {
     fetch("/api/user/me")
@@ -44,18 +48,25 @@ export function Sidebar() {
   ];
 
   const handleSignOut = async () => {
+    setIsSigningOut(true);
     try {
       await fetch("/api/auth/logout", { method: "POST" });
-      window.location.href = "/login";
+      // Redirect with message param so login page can show success alert
+      window.location.href = "/login?message=logged_out";
     } catch (e) {
       console.error(e);
+      setIsSigningOut(false);
+      setShowLogoutConfirm(false);
     }
   };
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 bg-navy-900 border-r border-white/10 flex flex-col z-40">
-      <div className="h-20 flex items-center px-6 border-b border-white/10">
-        <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-teal-400">
+    <aside className="hidden md:flex fixed left-0 top-0 h-screen w-64 bg-navy-900 border-r border-white/10 flex-col z-40">
+      <div className="h-20 flex items-center px-6 border-b border-white/10 gap-3">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-teal-500 flex items-center justify-center shadow-lg shadow-teal-500/20">
+          <GraduationCap className="w-6 h-6 text-navy-900" />
+        </div>
+        <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
           ScholrAI
         </span>
       </div>
@@ -65,7 +76,8 @@ export function Sidebar() {
           const isActive = pathname === link.href;
           return (
             <Link key={link.href} href={link.href}>
-              <div
+              <motion.div
+                whileTap={{ scale: 0.95 }}
                 className={cn(
                   "flex items-center gap-3 px-4 py-3 rounded-xl transition-all mb-1",
                   isActive
@@ -82,20 +94,46 @@ export function Sidebar() {
                   )}
                 />
                 {link.name}
-              </div>
+              </motion.div>
             </Link>
           );
         })}
       </nav>
 
       <div className="p-4 border-t border-white/10">
-        <button
-          onClick={handleSignOut}
-          className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-gray-400 hover:text-red-400 hover:bg-red-400/10 transition-colors"
-        >
-          <LogOut className="w-5 h-5" />
-          Sign Out
-        </button>
+        {showLogoutConfirm ? (
+          <div className="space-y-2 animate-in fade-in slide-in-from-bottom-2">
+            <p className="text-xs text-center text-gray-400 mb-1">
+              Are you sure?
+            </p>
+            <div className="flex gap-2">
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowLogoutConfirm(false)}
+                className="flex-1 py-2 rounded-lg bg-navy-800 text-gray-300 hover:bg-navy-700 hover:text-white text-xs font-bold transition-colors"
+              >
+                Cancel
+              </motion.button>
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={handleSignOut}
+                disabled={isSigningOut}
+                className="flex-1 py-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white text-xs font-bold transition-all flex items-center justify-center gap-2"
+              >
+                {isSigningOut ? "..." : "Logout"}
+              </motion.button>
+            </div>
+          </div>
+        ) : (
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowLogoutConfirm(true)}
+            className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-gray-400 hover:text-red-400 hover:bg-red-400/10 transition-all group hover:shadow-lg hover:shadow-red-500/10"
+          >
+            <LogOut className="w-5 h-5 group-hover:scale-110 transition-transform" />
+            Sign Out
+          </motion.button>
+        )}
 
         <div className="mt-4 flex items-center gap-3 px-2">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-400 to-blue-500 flex items-center justify-center font-bold text-white">
