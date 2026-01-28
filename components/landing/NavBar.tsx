@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { motion } from "framer-motion";
 import { GraduationCap } from "lucide-react";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 export function NavBar() {
   return (
@@ -28,7 +29,7 @@ export function NavBar() {
             <Link
               key={item}
               href={`#${item.toLowerCase().replace(" ", "-")}`}
-              className="text-sm font-medium text-gray-300 hover:text-white transition-colors"
+              className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
             >
               {item}
             </Link>

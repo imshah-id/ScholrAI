@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   User,
@@ -14,6 +15,14 @@ import { cn } from "@/lib/utils";
 
 export function MobileNav() {
   const pathname = usePathname();
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    fetch("/api/shortlist")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setCount(data.length))
+      .catch(() => {});
+  }, []);
 
   const links = [
     { name: "Home", href: "/dashboard", icon: LayoutDashboard },
@@ -33,13 +42,20 @@ export function MobileNav() {
               key={link.href}
               href={link.href}
               className={cn(
-                "flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-all min-w-[60px]",
+                "flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-all min-w-[60px] relative",
                 isActive
                   ? "bg-primary/20 text-primary"
                   : "text-gray-400 hover:text-white active:scale-95",
               )}
             >
-              <link.icon className="w-5 h-5" />
+              <div className="relative">
+                <link.icon className="w-5 h-5" />
+                {link.name === "Shortlist" && count > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center border border-navy-900">
+                    {count}
+                  </span>
+                )}
+              </div>
               <span className="text-[10px] font-medium">{link.name}</span>
             </Link>
           );

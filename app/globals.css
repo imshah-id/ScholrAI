@@ -26,6 +26,7 @@
 }
 
 :root {
+  /* Original Premium Dark Theme */
   --background: #020617; /* Deep Navy Default */
   --foreground: #f8fafc;
 
@@ -40,6 +41,38 @@
 
   --card: #0f172a; /* Slate 900 */
   --card-foreground: #f8fafc;
+
+  --muted: #0f172a;
+  --muted-foreground: #94a3b8;
+
+  --border: #1e293b;
+  --input: #1e293b;
+  --ring: #14b8a6;
+}
+
+.dark {
+  /* Dark Mode */
+  --background: #020617; /* Deep Navy */
+  --foreground: #f8fafc;
+
+  --primary: #facc15;
+  --primary-foreground: #020617;
+
+  --secondary: #1e293b; /* Slate 800 */
+  --secondary-foreground: #f8fafc;
+
+  --accent: #14b8a6;
+  --accent-foreground: #ffffff;
+
+  --card: #0f172a; /* Slate 900 */
+  --card-foreground: #f8fafc;
+
+  --muted: #0f172a;
+  --muted-foreground: #94a3b8;
+
+  --border: #1e293b; /* Slate 800 */
+  --input: #1e293b;
+  --ring: #14b8a6;
 }
 
 body {

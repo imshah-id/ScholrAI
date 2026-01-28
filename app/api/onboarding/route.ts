@@ -12,7 +12,11 @@ export async function POST(req: Request) {
     const body = await req.json();
     const {
       targetDegree,
+      targetMajor,
       targetIntake,
+      highestQualification,
+      fieldOfStudy,
+      citizenship,
       gpa,
       gpaScale,
       englishTest,
@@ -27,7 +31,11 @@ export async function POST(req: Request) {
       where: { userId: session.userId },
       update: {
         targetDegree,
+        targetMajor,
         targetIntake,
+        highestQualification,
+        fieldOfStudy,
+        citizenship,
         gpa,
         gpaScale: gpaScale || "4.0",
         englishTest,
@@ -39,7 +47,11 @@ export async function POST(req: Request) {
       create: {
         userId: session.userId,
         targetDegree,
+        targetMajor,
         targetIntake,
+        highestQualification,
+        fieldOfStudy,
+        citizenship,
         gpa,
         gpaScale: gpaScale || "4.0",
         englishTest,

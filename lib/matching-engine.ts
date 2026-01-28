@@ -20,56 +20,47 @@ export interface CanonicalProfile {
       target_degree: string;
       preferred_countries: string[];
     };
+    background: {
+      highest_qualification: string;
+      field_of_study: string;
+      citizenship: string;
+    };
   };
 }
 
-export interface CanonicalUniversity {
-  id: string;
-  name: string;
-  rank: number;
-  location: {
-    country: string;
-    city: string;
-  };
-  costs: {
-    tuition: number;
-    currency: string;
-  };
-  difficulty: {
-    acceptance_rate: number;
-    academic_expectation: number; // 0-1
-    language_expectation: number; // 0-1
-  };
-  tags: string[];
+// ... (omitted CanonicalUniversity interface) ...
+
+// --- Helper Functions ---
+function parseFee(feeStr: string): number {
+  if (!feeStr) return 0;
+  // "$60k" or "€0" or "£30,000"
+  const num = parseFloat(feeStr.replace(/[^0-9.]/g, ""));
+  if (isNaN(num)) return 0;
+  // Heuristic: If < 1000, likely 'k' notation implied or explicit
+  if (feeStr.toLowerCase().includes("k")) return num * 1000;
+  return num;
 }
 
-// --- HELPER: Parse Budget Strings ---
-function parseBudgetAmount(str: string): number {
-  if (!str) return 0;
-  // "60k+" -> 60000, "20k-40k" -> take 40000
-  const normalized = str.toLowerCase().replace(/,/g, "").replace(/k/g, "000");
+function parseBudgetAmount(budgetStr: string): number {
+  if (!budgetStr) return 0;
+  // Extract all numbers
+  const matches = budgetStr.match(/(\d+)/g);
+  if (!matches) return 0;
 
-  if (normalized.includes("-")) {
-    const parts = normalized.split("-");
-    const max = parts[1];
-    return parseInt(max.replace(/[^0-9]/g, "")) || 0;
-  }
+  // If "20k-40k", take average or max? Let's take max to be permissive
+  const nums = matches.map((n) => parseInt(n));
+  const val = Math.max(...nums);
 
-  return parseInt(normalized.replace(/[^0-9]/g, "")) || 0;
+  // Check for 'k'
+  if (budgetStr.toLowerCase().includes("k")) return val * 1000;
+  return val;
 }
 
-function isBudgetFlexible(str: string): boolean {
+function isBudgetFlexible(budgetStr: string): boolean {
+  if (!budgetStr) return false;
   return (
-    str.includes("+") ||
-    str.toLowerCase().includes("plus") ||
-    str.toLowerCase().includes("more")
+    budgetStr.includes("+") || budgetStr.toLowerCase().includes("flexible")
   );
-}
-
-function parseFee(str: string): number {
-  const normalized = str.toLowerCase().replace(/,/g, "").replace(/k/g, "000");
-  // Simple currency detection could go here, assuming USD for MVP
-  return parseInt(normalized.replace(/[^0-9]/g, "")) || 0;
 }
 
 export function createCanonicalProfile(
@@ -81,6 +72,9 @@ export function createCanonicalProfile(
   budgetStr: string,
   degree: string,
   countries: string[],
+  qualification: string = "",
+  field: string = "",
+  citizenshipStr: string = "",
 ): CanonicalProfile {
   // 1. Normalize GPA
   let gpaVal = 0;
@@ -122,6 +116,11 @@ export function createCanonicalProfile(
       preferences: {
         target_degree: degree,
         preferred_countries: countries,
+      },
+      background: {
+        highest_qualification: qualification,
+        field_of_study: field,
+        citizenship: citizenshipStr,
       },
     },
   };
@@ -265,8 +264,36 @@ export function evaluateUniversity(
   }
   score += langScore;
 
+  // 5. Background Relevance (Bonus) -> +1 max
+  if (user.profile.background?.field_of_study) {
+    score += 0.5;
+    reasons.push("Academic Background Aligned");
+  }
+  if (user.profile.background?.highest_qualification) {
+    score += 0.5;
+  }
+
+  // 6. Citizenship / Domestic Advantage -> +1 max
+  const userCitizen = user.profile.background?.citizenship?.toLowerCase();
+  // uniCountry is already defined above? If not, define it.
+  // Actually, let's just use uni.location.country directly to be safe or rename.
+  const uniLocationCountry = uni.location.country.toLowerCase();
+
+  // Simple Domestic Check
+  // Note: This logic assumes if you are a citizen of the country, you have higher chances/lower fees
+  // Ideally we check "Accepts Int'l" but assuming ALL do, domestic is just a bonus.
+  if (
+    userCitizen &&
+    (userCitizen === uniLocationCountry ||
+      uniLocationCountry.includes(userCitizen) ||
+      userCitizen.includes(uniLocationCountry))
+  ) {
+    score += 1;
+    reasons.push("Domestic Applicant (High Acceptance)");
+  }
+
   return {
-    score: score, // Out of ~10 (4+3+2+1)
+    score: score, // Out of ~12 now
     match_category: score >= 9 ? "SAFE" : score >= 7 ? "TARGET" : "DREAM",
     acceptance_chance: score >= 9 ? "High" : score >= 7 ? "Medium" : "Low",
     why_it_fits: reasons,

@@ -40,6 +40,7 @@ export default function GuidancePage() {
   const [reviewing, setReviewing] = useState(false);
   const [tips, setTips] = useState<string[]>([]);
   const [tipsLoading, setTipsLoading] = useState(false);
+  const [activeTaskTitle, setActiveTaskTitle] = useState("");
 
   // Documents State
   interface UploadedFile {

@@ -3,6 +3,54 @@
 import { useState } from "react";
 import { X, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { MAJOR_MAP } from "@/lib/constants";
+
+// Mappings for Dependent Fields
+const QUALIFICATION_MAP: Record<string, string[]> = {
+  "High School": ["Science", "Arts", "Commerce", "Vocational"],
+  Bachelors: [
+    "Engineering",
+    "Arts",
+    "Commerce",
+    "Medicine",
+    "Law",
+    "Science",
+    "Business",
+  ],
+  Masters: [
+    "Engineering",
+    "Business (MBA)",
+    "Arts",
+    "Science",
+    "Law",
+    "Medicine",
+  ],
+  PhD: ["Research", "Teaching", "Applied Sciences"],
+  Diploma: ["Technical", "Vocational", "Creative Arts"],
+};
+
+const CITIZENSHIP_OPTIONS = [
+  "India",
+  "USA",
+  "China",
+  "Nigeria",
+  "Pakistan",
+  "Bangladesh",
+  "Nepal",
+  "Sri Lanka",
+  "Vietnam",
+  "Philippines",
+  "Indonesia",
+  "Malaysia",
+  "South Korea",
+  "Japan",
+  "Germany",
+  "France",
+  "UK",
+  "Canada",
+  "Australia",
+  "Other",
+];
 
 type EditProfileModalProps = {
   isOpen: boolean;
@@ -18,8 +66,12 @@ export default function EditProfileModal({
   onSave,
 }: EditProfileModalProps) {
   const [formData, setFormData] = useState({
-    targetDegree: user?.degree || "Masters",
+    targetDegree: user?.degree || "",
+    targetMajor: user?.targetMajor || "",
     targetIntake: user?.intake || "Fall 2026",
+    highestQualification: user?.highestQualification || "",
+    fieldOfStudy: user?.fieldOfStudy || "",
+    citizenship: user?.citizenship || "",
     gpa: user?.gpa || "",
     gpaScale: user?.gpaScale || "4.0",
     englishTest: user?.englishTest || "None",
@@ -36,6 +88,12 @@ export default function EditProfileModal({
 
   const handleSubmit = async () => {
     // Validation Logic
+
+    // 0. Basic Validation
+    if (!formData.targetDegree) {
+      alert("Please select a Target Degree.");
+      return;
+    }
 
     // 1. GPA Validation
     if (!formData.gpa || formData.gpa.trim() === "") {
@@ -159,20 +217,111 @@ export default function EditProfileModal({
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm text-gray-400 mb-1">
+                      Citizenship
+                    </label>
+                    <select
+                      className="w-full bg-navy-800 border border-white/10 rounded-lg px-3 py-2 outline-none"
+                      value={formData.citizenship}
+                      onChange={(e) =>
+                        updateData("citizenship", e.target.value)
+                      }
+                    >
+                      <option value="">Select Citizenship</option>
+                      {CITIZENSHIP_OPTIONS.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">
+                      Highest Qualification
+                    </label>
+                    <select
+                      className="w-full bg-navy-800 border border-white/10 rounded-lg px-3 py-2 outline-none"
+                      value={formData.highestQualification}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        updateData("highestQualification", val);
+                        updateData("fieldOfStudy", "");
+                      }}
+                    >
+                      <option value="">Select Qualification</option>
+                      {Object.keys(QUALIFICATION_MAP).map((q) => (
+                        <option key={q} value={q}>
+                          {q}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">
+                      Field of Study
+                    </label>
+                    <select
+                      className={`w-full bg-navy-800 border border-white/10 rounded-lg px-3 py-2 outline-none ${!formData.highestQualification ? "opacity-50" : ""}`}
+                      value={formData.fieldOfStudy}
+                      onChange={(e) =>
+                        updateData("fieldOfStudy", e.target.value)
+                      }
+                      disabled={!formData.highestQualification}
+                    >
+                      <option value="">Select Field</option>
+                      {formData.highestQualification &&
+                        QUALIFICATION_MAP[formData.highestQualification]?.map(
+                          (f) => (
+                            <option key={f} value={f}>
+                              {f}
+                            </option>
+                          ),
+                        )}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">
                       Degree
                     </label>
                     <select
                       className="w-full bg-navy-800 border border-white/10 rounded-lg px-3 py-2 outline-none"
                       value={formData.targetDegree}
-                      onChange={(e) =>
-                        updateData("targetDegree", e.target.value)
-                      }
+                      onChange={(e) => {
+                        updateData("targetDegree", e.target.value);
+                        updateData("targetMajor", "");
+                      }}
                     >
                       {["Bachelors", "Masters", "PhD", "MBA"].map((deg) => (
                         <option key={deg} value={deg}>
                           {deg}
                         </option>
                       ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">
+                      Target Major
+                    </label>
+                    <select
+                      className={`w-full bg-navy-800 border border-white/10 rounded-lg px-3 py-2 outline-none ${!formData.targetDegree ? "opacity-50" : ""}`}
+                      value={formData.targetMajor || ""}
+                      onChange={(e) =>
+                        updateData("targetMajor", e.target.value)
+                      }
+                      disabled={!formData.targetDegree}
+                    >
+                      <option value="">Select Major</option>
+                      {formData.targetDegree &&
+                        MAJOR_MAP[formData.targetDegree]?.map((major) => (
+                          <option key={major} value={major}>
+                            {major}
+                          </option>
+                        ))}
                     </select>
                   </div>
                   <div>

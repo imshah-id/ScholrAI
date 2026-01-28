@@ -19,19 +19,24 @@ import { motion } from "framer-motion";
 export function Sidebar() {
   const pathname = usePathname();
   const [user, setUser] = useState<any>(null);
+  const [shortlistCount, setShortlistCount] = useState(0);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   useEffect(() => {
+    // Fetch User
     fetch("/api/user/me")
-      .then((res) => {
-        if (res.ok) return res.json();
-        return null;
-      })
+      .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data) setUser(data);
       })
       .catch((err) => console.error("Sidebar auth check failed", err));
+
+    // Fetch Shortlist Count
+    fetch("/api/shortlist")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setShortlistCount(data.length))
+      .catch((err) => console.error("Shortlist fetch failed", err));
   }, []);
 
   const links = [
@@ -93,7 +98,19 @@ export function Sidebar() {
                       : "text-gray-500 group-hover:text-white",
                   )}
                 />
-                {link.name}
+                <span className="flex-1">{link.name}</span>
+                {link.name === "Shortlist" && shortlistCount > 0 && (
+                  <span
+                    className={cn(
+                      "text-[10px] font-bold px-2 py-0.5 rounded-full",
+                      isActive
+                        ? "bg-navy-900/20 text-navy-900"
+                        : "bg-primary text-navy-900",
+                    )}
+                  >
+                    {shortlistCount}
+                  </span>
+                )}
               </motion.div>
             </Link>
           );

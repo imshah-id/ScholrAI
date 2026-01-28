@@ -3,6 +3,15 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { ArrowRight, Compass } from "lucide-react";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 export function Hero() {
   return (
@@ -39,7 +48,7 @@ export function Hero() {
             <br /> Path
           </h1>
 
-          <p className="text-lg text-gray-400 max-w-xl leading-relaxed">
+          <p className="text-lg text-muted-foreground max-w-xl leading-relaxed">
             AI-driven analysis to optimize your university applications, match
             you with scholarships, and maximize your acceptance chances.
           </p>
@@ -99,45 +108,70 @@ export function Hero() {
               </div>
             </div>
 
-            {/* Premium Bar Chart Mock */}
-            <div className="h-64 w-full relative flex items-end justify-between gap-3 px-4 border-b border-l border-white/10 pb-2">
-              {/* Grid Lines */}
-              <div className="absolute inset-x-0 bottom-1/3 h-px bg-white/5 border-t border-dashed border-white/10" />
-              <div className="absolute inset-x-0 bottom-2/3 h-px bg-white/5 border-t border-dashed border-white/10" />
-
-              {[35, 55, 40, 75, 60, 85, 95].map((h, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: `${h}%`, opacity: 1 }}
-                  transition={{
-                    duration: 0.8,
-                    delay: 0.2 + i * 0.1,
-                    ease: "backOut",
-                  }}
-                  className="w-full relative group"
+            {/* Premium Area Chart Mock */}
+            <div className="h-64 w-full relative p-4 border-b border-l border-white/10">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart
+                  data={[
+                    { year: "2020", rate: 35 },
+                    { year: "2021", rate: 45 },
+                    { year: "2022", rate: 40 },
+                    { year: "2023", rate: 65 },
+                    { year: "2024", rate: 60 },
+                    { year: "2025", rate: 85 },
+                    { year: "2026", rate: 95 },
+                  ]}
                 >
-                  {/* Bar Gradient */}
-                  <div className="absolute bottom-0 w-full h-full bg-gradient-to-t from-teal-500/10 to-teal-400 rounded-t-sm opacity-80 group-hover:opacity-100 transition-opacity" />
-
-                  {/* Glow Effect on Hover */}
-                  <div className="absolute bottom-0 w-full h-full bg-teal-400 blur-md opacity-0 group-hover:opacity-40 transition-opacity" />
-
-                  {/* Tooltip */}
-                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0 bg-navy-900 text-teal-300 text-xs font-bold px-2 py-1 rounded border border-teal-500/30 whitespace-nowrap shadow-xl z-20">
-                    {h}% Rate
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-            <div className="flex justify-between mt-4 text-xs text-gray-500 font-mono px-2">
-              <span>2020</span>
-              <span>2021</span>
-              <span>2022</span>
-              <span>2023</span>
-              <span>2024</span>
-              <span>2025</span>
-              <span>2026</span>
+                  <defs>
+                    <linearGradient
+                      id="areaGradient"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
+                      <stop offset="5%" stopColor="#2dd4bf" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#2dd4bf" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="rgba(255,255,255,0.1)"
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="year"
+                    stroke="#94a3b8"
+                    tick={{ fontSize: 12 }}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis hide domain={[0, 100]} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#0f172a",
+                      borderColor: "rgba(255,255,255,0.1)",
+                      borderRadius: "8px",
+                      color: "#f8fafc",
+                    }}
+                    itemStyle={{ color: "#2dd4bf" }}
+                    cursor={{
+                      stroke: "rgba(255,255,255,0.2)",
+                      strokeWidth: 1,
+                      strokeDasharray: "4 4",
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="rate"
+                    stroke="#2dd4bf"
+                    fillOpacity={1}
+                    fill="url(#areaGradient)"
+                    strokeWidth={4}
+                    animationDuration={2000}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
             </div>
           </div>
         </motion.div>

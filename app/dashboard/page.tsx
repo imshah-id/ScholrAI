@@ -13,6 +13,7 @@ import {
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { ProfileRadar, ReadinessGraph } from "@/components/dashboard/Charts";
+import ProfileStrengthCard from "@/components/dashboard/ProfileStrengthCard";
 
 export default function DashboardPage() {
   const [userName, setUserName] = useState("Scholar");
@@ -139,6 +140,18 @@ export default function DashboardPage() {
         type: "Scholarships",
         school: "Global Merit",
       },
+      {
+        month: months[(d3.getMonth() + 1) % 12],
+        day: "10",
+        type: "Housing",
+        school: "Priority Application",
+      },
+      {
+        month: months[(d3.getMonth() + 2) % 12],
+        day: "05",
+        type: "Visa Processing",
+        school: "Embassy Appointment",
+      },
     ];
   };
 
@@ -172,26 +185,8 @@ export default function DashboardPage() {
         <div className="lg:col-span-2 space-y-6">
           {/* Stats Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="glass p-5 rounded-2xl border border-white/5 relative overflow-hidden group hover:border-purple-500/30 transition-colors">
-              <div className="absolute right-0 top-0 w-20 h-20 bg-purple-500/10 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110" />
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-purple-500/20 rounded-lg text-purple-400">
-                  <BookOpen className="w-5 h-5" />
-                </div>
-                <div className="text-sm text-gray-400 font-medium">
-                  Profile Strength
-                </div>
-              </div>
-              <div className="text-3xl font-bold text-white mb-1">
-                {stats.strength}%
-              </div>
-              <div className="w-full bg-navy-800 h-1.5 rounded-full overflow-hidden">
-                <div
-                  className="bg-gradient-to-r from-purple-500 to-pink-500 h-full transition-all duration-1000"
-                  style={{ width: `${stats.strength}%` }}
-                />
-              </div>
-            </div>
+            {/* Profile Strength Card (Shared Component) */}
+            <ProfileStrengthCard strength={stats.strength} className="h-full" />
 
             <div className="glass p-5 rounded-2xl border border-white/5 relative overflow-hidden group hover:border-blue-500/30 transition-colors">
               <div className="absolute right-0 top-0 w-20 h-20 bg-blue-500/10 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110" />

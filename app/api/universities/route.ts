@@ -157,9 +157,12 @@ export async function GET(req: Request) {
     }
 
     // 2. Fetch Universities
-    let whereClause: any = {};
+    // Strategy: First try strict filtering. If low results, fallback to general top universities.
 
-    // 1. Search Query Filter
+    let whereClause: any = {};
+    let strictCountryClause: any = null;
+
+    // A. Base Search Filter
     if (query) {
       whereClause = {
         OR: [
@@ -170,39 +173,51 @@ export async function GET(req: Request) {
       };
     }
 
-    // 2. Strict Country Preference Filter (ALWAYS Apply)
+    // B. Country Preference Filter Construction
     if (userProfile) {
       try {
         const prefs = JSON.parse(userProfile.preferredCountries || "[]");
         if (Array.isArray(prefs) && prefs.length > 0) {
-          // If we already have a clause (from search), wrap it in AND
-          // If search is empty, whereClause is {}, so AND remains valid or just use the country clause
-          const countryClause = {
+          strictCountryClause = {
             OR: prefs.map((c) => ({
               country: { contains: c, mode: "insensitive" },
             })),
           };
-
-          if (query) {
-            whereClause = {
-              AND: [whereClause, countryClause],
-            };
-          } else {
-            whereClause = countryClause;
-          }
         }
       } catch (e) {}
     }
 
+    // C. Execute Query: Try Strict First
+    let finalWhere = { ...whereClause };
+    if (strictCountryClause) {
+      if (query) {
+        finalWhere = { AND: [whereClause, strictCountryClause] };
+      } else {
+        finalWhere = strictCountryClause;
+      }
+    }
+
     let universities = await prisma.university.findMany({
-      where: whereClause,
+      where: finalWhere,
       take: 50,
     });
 
-    // Quick Fix for seeding if empty (since valid DB might be empty initially)
-    if (universities.length === 0 && !query) {
-      // This is a bit hacky for a GET route to write, but acceptable for MVP prototype
-      // skipping implementation details of seeding to focus on matching
+    // D. Fallback: If strict filtering yields < 5 results, fetch broader set
+    // (Only fallback if user didn't explicitly search for a specific term)
+    if (universities.length < 5 && !query) {
+      console.log("Low strict match count, fetching fallback universities...");
+      // Fetch top universities ignoring country preference
+      const fallbackUniversities = await prisma.university.findMany({
+        take: 20,
+        orderBy: { rank: "asc" }, // Show top ranked first
+      });
+
+      // Merge unique (avoid duplicates if some already matched)
+      const existingIds = new Set(universities.map((u) => u.id));
+      const newUnis = fallbackUniversities.filter(
+        (u) => !existingIds.has(u.id),
+      );
+      universities = [...universities, ...newUnis];
     }
 
     // 3. Calculate Match Scores (Using Canonical Engine)
@@ -233,15 +248,20 @@ export async function GET(req: Request) {
         const canonicalUni = createCanonicalUniversity(uni);
 
         // Run Evaluation
-        const result = evaluateUniversity(canonicalProfile, canonicalUni);
+        try {
+          const result = evaluateUniversity(canonicalProfile, canonicalUni);
 
-        // Map 0-10 scale to Percentage (Total max score is now ~10)
-        score = Math.round((result.score / 10) * 100);
-        if (score > 100) score = 100;
+          // Map 0-10 scale to Percentage (Total max score is now ~10)
+          score = Math.round((result.score / 10) * 100);
+          if (score > 100) score = 100;
 
-        matchCategory = result.match_category;
-        matchChance = result.acceptance_chance;
-        reasons = result.why_it_fits;
+          matchCategory = result.match_category;
+          matchChance = result.acceptance_chance;
+          reasons = result.why_it_fits;
+        } catch (err) {
+          console.error("Scoring error for university:", uni.id, err);
+          score = 50; // Fallback score
+        }
       } else {
         score = 70; // Default
       }
@@ -261,8 +281,19 @@ export async function GET(req: Request) {
     return NextResponse.json(scoredUniversities);
   } catch (error) {
     console.error("Universities API error:", error);
+    // Debugging: Write to file
+    try {
+      const fs = require("fs");
+      fs.writeFileSync(
+        "api-error.log",
+        JSON.stringify(error, Object.getOwnPropertyNames(error)) +
+          "\n" +
+          String(error),
+      );
+    } catch (e) {}
+
     return NextResponse.json(
-      { error: "Internal Server Error" },
+      { error: "Internal Server Error", details: String(error) },
       { status: 500 },
     );
   }
