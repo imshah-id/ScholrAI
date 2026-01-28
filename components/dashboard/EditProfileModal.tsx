@@ -330,31 +330,41 @@ export default function EditProfileModal({
                     Countries
                   </label>
                   <div className="flex flex-wrap gap-2">
-                    {["USA", "UK", "Canada", "Australia", "Germany"].map(
-                      (c) => {
-                        const isSelected =
-                          formData.preferredCountries.includes(c);
-                        return (
-                          <button
-                            key={c}
-                            onClick={() => {
-                              const prev = formData.preferredCountries;
-                              const next = isSelected
-                                ? prev.filter((p: string) => p !== c)
-                                : [...prev, c];
-                              updateData("preferredCountries", next);
-                            }}
-                            className={`px-3 py-1 rounded-full border text-xs transition-colors ${
-                              isSelected
-                                ? "bg-white text-navy-900 font-bold border-white"
-                                : "border-white/10 hover:bg-white/5"
-                            }`}
-                          >
-                            {c}
-                          </button>
-                        );
-                      },
-                    )}
+                    {[
+                      "USA",
+                      "UK",
+                      "Canada",
+                      "Australia",
+                      "Germany",
+                      "Singapore",
+                      "Ireland",
+                      "China",
+                      "New Zealand",
+                      "Netherlands",
+                      "Switzerland",
+                    ].map((c) => {
+                      const isSelected =
+                        formData.preferredCountries.includes(c);
+                      return (
+                        <button
+                          key={c}
+                          onClick={() => {
+                            const prev = formData.preferredCountries;
+                            const next = isSelected
+                              ? prev.filter((p: string) => p !== c)
+                              : [...prev, c];
+                            updateData("preferredCountries", next);
+                          }}
+                          className={`px-3 py-1 rounded-full border text-xs transition-colors ${
+                            isSelected
+                              ? "bg-white text-navy-900 font-bold border-white"
+                              : "border-white/10 hover:bg-white/5"
+                          }`}
+                        >
+                          {c}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>

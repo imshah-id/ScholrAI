@@ -415,33 +415,43 @@ export default function OnboardingPage() {
                       Preferred Countries
                     </label>
                     <div className="flex flex-wrap gap-2">
-                      {["USA", "UK", "Canada", "Australia", "Germany"].map(
-                        (country) => {
-                          const isSelected =
-                            data.preferredCountries.includes(country);
-                          return (
-                            <motion.button
-                              whileTap={{ scale: 0.95 }}
-                              key={country}
-                              onClick={() => {
-                                const newCountries = isSelected
-                                  ? data.preferredCountries.filter(
-                                      (c) => c !== country,
-                                    )
-                                  : [...data.preferredCountries, country];
-                                updateData("preferredCountries", newCountries);
-                              }}
-                              className={`px-4 py-2 rounded-full border text-sm transition-all ${
-                                isSelected
-                                  ? "border-primary bg-primary text-navy-900 font-bold"
-                                  : "border-white/10 bg-navy-900 hover:border-white/30"
-                              }`}
-                            >
-                              {country}
-                            </motion.button>
-                          );
-                        },
-                      )}
+                      {[
+                        "USA",
+                        "UK",
+                        "Canada",
+                        "Australia",
+                        "Germany",
+                        "Singapore",
+                        "Ireland",
+                        "China",
+                        "New Zealand",
+                        "Netherlands",
+                        "Switzerland",
+                      ].map((country) => {
+                        const isSelected =
+                          data.preferredCountries.includes(country);
+                        return (
+                          <motion.button
+                            whileTap={{ scale: 0.95 }}
+                            key={country}
+                            onClick={() => {
+                              const newCountries = isSelected
+                                ? data.preferredCountries.filter(
+                                    (c) => c !== country,
+                                  )
+                                : [...data.preferredCountries, country];
+                              updateData("preferredCountries", newCountries);
+                            }}
+                            className={`px-4 py-2 rounded-full border text-sm transition-all ${
+                              isSelected
+                                ? "border-primary bg-primary text-navy-900 font-bold"
+                                : "border-white/10 bg-navy-900 hover:border-white/30"
+                            }`}
+                          >
+                            {country}
+                          </motion.button>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>

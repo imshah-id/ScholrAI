@@ -22,9 +22,10 @@ export async function POST(req: Request) {
     } = body;
 
     // Update Profile
-    const updatedProfile = await prisma.profile.update({
+    // Update or Create Profile
+    const updatedProfile = await prisma.profile.upsert({
       where: { userId: session.userId },
-      data: {
+      update: {
         targetDegree,
         targetIntake,
         gpa,
@@ -34,6 +35,19 @@ export async function POST(req: Request) {
         budget,
         preferredCountries: JSON.stringify(preferredCountries),
         currentStage: "DISCOVERY",
+      },
+      create: {
+        userId: session.userId,
+        targetDegree,
+        targetIntake,
+        gpa,
+        gpaScale: gpaScale || "4.0",
+        englishTest,
+        testScore,
+        budget,
+        preferredCountries: JSON.stringify(preferredCountries),
+        currentStage: "DISCOVERY",
+        readinessScore: 30,
       },
     });
 

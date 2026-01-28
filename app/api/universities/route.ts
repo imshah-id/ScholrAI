@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import {
+  evaluateUniversity,
+  createCanonicalProfile,
+  createCanonicalUniversity,
+} from "@/lib/matching-engine";
 
 const SEED_UNIVERSITIES = [
   {
@@ -152,14 +157,45 @@ export async function GET(req: Request) {
     }
 
     // 2. Fetch Universities
-    let universities = await prisma.university.findMany({
-      where: {
+    let whereClause: any = {};
+
+    // 1. Search Query Filter
+    if (query) {
+      whereClause = {
         OR: [
           { name: { contains: query, mode: "insensitive" } },
           { location: { contains: query, mode: "insensitive" } },
           { country: { contains: query, mode: "insensitive" } },
         ],
-      },
+      };
+    }
+
+    // 2. Strict Country Preference Filter (ALWAYS Apply)
+    if (userProfile) {
+      try {
+        const prefs = JSON.parse(userProfile.preferredCountries || "[]");
+        if (Array.isArray(prefs) && prefs.length > 0) {
+          // If we already have a clause (from search), wrap it in AND
+          // If search is empty, whereClause is {}, so AND remains valid or just use the country clause
+          const countryClause = {
+            OR: prefs.map((c) => ({
+              country: { contains: c, mode: "insensitive" },
+            })),
+          };
+
+          if (query) {
+            whereClause = {
+              AND: [whereClause, countryClause],
+            };
+          } else {
+            whereClause = countryClause;
+          }
+        }
+      } catch (e) {}
+    }
+
+    let universities = await prisma.university.findMany({
+      where: whereClause,
       take: 50,
     });
 
@@ -169,53 +205,54 @@ export async function GET(req: Request) {
       // skipping implementation details of seeding to focus on matching
     }
 
-    // 3. Calculate Match Scores
+    // 3. Calculate Match Scores (Using Canonical Engine)
     const scoredUniversities = universities.map((uni: any) => {
       let score = 0;
-      let reasons = [];
+      let reasons: string[] = [];
+      let matchCategory = "TARGET";
+      let matchChance = "Medium";
 
-      if (userProfile) {
-        // A. Country Match (50%)
-        // preferredCountries is JSON string "[\"USA\", \"Canada\"]"
-        let preferred: string[] = [];
+      if (userProfile && session) {
+        // Convert User & Uni to Canonical Format
+        const canonicalProfile = createCanonicalProfile(
+          session.userId,
+          userProfile.gpa || "0",
+          userProfile.gpaScale || "4.0",
+          userProfile.englishTest || "",
+          userProfile.testScore || "0", // Pass actual score
+          userProfile.budget || "0",
+          userProfile.targetDegree || "Bachelors",
+          [],
+        );
         try {
-          preferred = JSON.parse(userProfile.preferredCountries || "[]");
+          const prefs = JSON.parse(userProfile.preferredCountries || "[]");
+          canonicalProfile.profile.preferences.preferred_countries =
+            Array.isArray(prefs) ? prefs : [prefs];
         } catch (e) {}
 
-        // formatting check
-        if (typeof preferred === "string") preferred = [preferred]; // handle edge case
+        const canonicalUni = createCanonicalUniversity(uni);
 
-        const isCountryMatch = preferred.some(
-          (c) =>
-            uni.country.toLowerCase().includes(c.toLowerCase()) ||
-            uni.location.toLowerCase().includes(c.toLowerCase()),
-        );
+        // Run Evaluation
+        const result = evaluateUniversity(canonicalProfile, canonicalUni);
 
-        if (isCountryMatch) {
-          score += 50;
-        }
+        // Map 0-10 scale to Percentage (Total max score is now ~10)
+        score = Math.round((result.score / 10) * 100);
+        if (score > 100) score = 100;
 
-        // B. Budget Match (50%)
-        // uni.fees "$60k", userProfile.budget "$20k-$40k" or "$50k+"
-        const uniFee = parseFees(uni.fees);
-        const userBudgetMax = parseBudget(
-          userProfile.budget.split("-")[1] || userProfile.budget,
-        ); // rough parsing
-
-        // If fee is 0 (free) covers all budgets.
-        // If user budget >= uni fee
-        if (uniFee <= userBudgetMax || uniFee === 0) {
-          score += 50;
-        } else if (uniFee <= userBudgetMax * 1.2) {
-          // close enough (within 20%)
-          score += 30;
-        }
+        matchCategory = result.match_category;
+        matchChance = result.acceptance_chance;
+        reasons = result.why_it_fits;
       } else {
-        // Default score if no profile
-        score = 70;
+        score = 70; // Default
       }
 
-      return { ...uni, matchScore: score };
+      return {
+        ...uni,
+        matchScore: score,
+        matchCategory,
+        matchChance,
+        reasons,
+      };
     });
 
     // 4. Sort by Match Score
