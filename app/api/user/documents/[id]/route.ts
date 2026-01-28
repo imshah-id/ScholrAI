@@ -4,15 +4,15 @@ import { prisma } from "@/lib/prisma";
 
 export async function DELETE(
   req: NextRequest,
-  props: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  const params = await props.params;
+  const { id } = await params;
   try {
     const session = await getSession();
     if (!session)
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const docId = params.id;
+    const docId = id;
 
     // Verify ownership
     const doc = await prisma.document.findUnique({

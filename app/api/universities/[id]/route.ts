@@ -9,16 +9,14 @@ import {
 
 export async function GET(
   req: Request,
-  props: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  const params = await props.params;
+  const { id } = await params;
   try {
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const { id } = params;
 
     const university = await prisma.university.findUnique({
       where: { id },
