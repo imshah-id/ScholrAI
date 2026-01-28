@@ -16,8 +16,10 @@ import {
   MessageSquare,
   Copy,
   Check,
+  ArrowRight,
+  Trash2,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 
 export default function GuidancePage() {
@@ -36,11 +38,54 @@ export default function GuidancePage() {
   const [reviewText, setReviewText] = useState("");
   const [reviewFeedback, setReviewFeedback] = useState("");
   const [reviewing, setReviewing] = useState(false);
-  const [activeTaskTitle, setActiveTaskTitle] = useState("");
+  const [tips, setTips] = useState<string[]>([]);
+  const [tipsLoading, setTipsLoading] = useState(false);
+
+  // Documents State
+  interface UploadedFile {
+    id: string;
+    name: string;
+    date: string;
+  }
+  const [documents, setDocuments] = useState<UploadedFile[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchGuidance();
+    // Load persisted docs from local storage if needed, or just start fresh
   }, []);
+
+  useEffect(() => {
+    if (university?.name && tips.length === 0) {
+      fetchTips();
+    }
+  }, [university]);
+
+  const fetchTips = async () => {
+    setTipsLoading(true);
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: `Give me 3 short, specific, high-impact tips to improve my admission chances for ${university.name} given my profile. Return ONLY the 3 tips as a list, no intro/outro.`,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Simple parsing: split by newlines, filter empty or short lines
+        const cleanTips = data.reply
+          .split("\n")
+          .filter((line: string) => line.trim().length > 10)
+          .slice(0, 3);
+        setTips(cleanTips);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setTipsLoading(false);
+    }
+  };
 
   const fetchGuidance = async () => {
     try {
@@ -56,16 +101,6 @@ export default function GuidancePage() {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    if (!loading && !university && tasks.length === 0) {
-      // No locked university found (and api returned empty)
-      // Need to check if it was a real "empty" or just loading.
-      // Actually, if university is null AFTER loading:
-      // Redirect
-    }
-  }, [loading, university, tasks]);
-  // Wait, let's do it inside the fetch or Render.
 
   if (!loading && !university) {
     return (
@@ -166,103 +201,269 @@ export default function GuidancePage() {
     }
   };
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    if (documents.length >= 5) {
+      alert("You can only upload up to 5 documents.");
+      return;
+    }
+
+    const file = files[0];
+    if (file.type !== "application/pdf") {
+      alert("Only PDF files are allowed.");
+      return;
+    }
+
+    const newDoc = {
+      id: Math.random().toString(36).substr(2, 9),
+      name: file.name,
+      date: new Date().toLocaleDateString(),
+    };
+
+    setDocuments([...documents, newDoc]);
+
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const removeDocument = (id: string) => {
+    setDocuments(documents.filter((doc) => doc.id !== id));
+  };
+
+  // Calculate Progress
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter((t) => t.status === "completed").length;
+  const progress =
+    totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold">Application Guidance</h1>
-        <p className="text-gray-400">
-          Step-by-step tasks to complete your application for{" "}
-          <span className="font-bold text-white max-w-md truncate inline-block align-bottom">
-            {university?.name || "your target university"}
-          </span>
-          .
-        </p>
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Application Guidance</h1>
+          <p className="text-gray-400">
+            Step-by-step tasks to complete your application for{" "}
+            <span className="font-bold text-white max-w-md truncate inline-block align-bottom">
+              {university?.name || "your target university"}
+            </span>
+            .
+          </p>
+        </div>
+
+        {/* Progress Bar Widget */}
+        <div className="bg-navy-800/50 border border-white/5 p-4 rounded-xl min-w-[250px]">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm font-bold text-gray-300">
+              Overall Progress
+            </span>
+            <span className="text-sm font-bold text-teal-400">{progress}%</span>
+          </div>
+          <div className="w-full bg-navy-900 h-2 rounded-full overflow-hidden">
+            <div
+              className="bg-gradient-to-r from-teal-500 to-teal-300 h-full transition-all duration-1000 ease-out"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
       </div>
 
       <div className="grid md:grid-cols-3 gap-8">
         {/* Task List */}
-        <div className="md:col-span-2 space-y-4">
-          {tasks.map((task) => (
-            <motion.div
-              key={task.id}
-              layout
-              className={`glass p-4 rounded-xl border flex items-center gap-4 cursor-pointer transition-colors ${
-                task.status === "completed"
-                  ? "border-green-500/30 bg-green-500/5 opacity-75"
-                  : "border-white/5 hover:border-white/20"
-              }`}
-              onClick={() => toggleTask(task.id)}
-            >
-              <div
-                className={`p-1 rounded-full ${task.status === "completed" ? "text-green-400" : "text-gray-500"}`}
+        <div className="md:col-span-2 space-y-6">
+          <div className="space-y-4">
+            <h3 className="font-bold text-xl flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-teal-400" /> Tasks Checklist
+            </h3>
+            {tasks.map((task) => (
+              <motion.div
+                key={task.id}
+                layout
+                className={`glass p-4 rounded-xl border flex items-center gap-4 cursor-pointer transition-colors relative overflow-hidden ${
+                  task.status === "completed"
+                    ? "border-green-500/30 bg-green-500/5 opacity-75"
+                    : "border-white/5 hover:border-white/20"
+                }`}
+                onClick={() => toggleTask(task.id)}
               >
-                {task.status === "completed" ? <CheckCircle2 /> : <Circle />}
-              </div>
-              <div className="flex-1">
-                <h3
-                  className={`font-semibold ${task.status === "completed" ? "line-through text-gray-500" : "text-white"}`}
+                <div
+                  className={`p-1 rounded-full ${task.status === "completed" ? "text-green-400" : "text-gray-500"}`}
                 >
-                  {task.title}
-                </h3>
-                <div className="flex items-center gap-3 text-xs text-gray-400 mt-1">
-                  <span className="bg-white/5 px-2 py-0.5 rounded">
-                    {task.type}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Calendar className="w-3 h-3" /> Due: {task.due}
+                  {task.status === "completed" ? <CheckCircle2 /> : <Circle />}
+                </div>
+                <div className="flex-1">
+                  <h3
+                    className={`font-semibold ${task.status === "completed" ? "line-through text-gray-500" : "text-white"}`}
+                  >
+                    {task.title}
+                  </h3>
+                  <div className="flex items-center gap-3 text-xs text-gray-400 mt-1">
+                    <span className="bg-white/5 px-2 py-0.5 rounded">
+                      {task.type}
+                    </span>
+                  </div>
+                </div>
+                {task.type === "Essay" && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openReviewModal(task.title);
+                    }}
+                    className="bg-teal-500/10 text-teal-400 text-xs font-bold px-3 py-1.5 rounded-lg border border-teal-500/20 hover:bg-teal-500/20 flex items-center gap-1.5"
+                  >
+                    <Sparkles className="w-3 h-3" /> AI Review
+                  </button>
+                )}
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Document Vault (Functional UI) */}
+          <div className="space-y-4 pt-4 border-t border-white/5">
+            <div className="flex justify-between items-center">
+              <h3 className="font-bold text-xl flex items-center gap-2">
+                <Upload className="w-5 h-5 text-purple-400" /> Document Vault
+              </h3>
+              <span className="text-xs text-gray-400">
+                {documents.length}/5 Files
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Upload Input */}
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-white/10 rounded-xl p-6 flex flex-col items-center justify-center text-center hover:border-purple-500 transition-colors cursor-pointer group bg-navy-900/30 h-[100px]"
+              >
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  accept=".pdf"
+                  className="hidden"
+                />
+                <div className="flex items-center gap-2">
+                  <Upload className="w-5 h-5 text-gray-400 group-hover:text-purple-400" />
+                  <span className="text-sm font-bold text-gray-300 group-hover:text-white">
+                    Upload PDF
                   </span>
                 </div>
               </div>
-              {task.type === "Essay" && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openReviewModal(task.title);
-                  }}
-                  className="bg-teal-500/10 text-teal-400 text-xs font-bold px-3 py-1.5 rounded-lg border border-teal-500/20 hover:bg-teal-500/20 flex items-center gap-1.5"
+
+              {/* Document List */}
+              {documents.map((doc) => (
+                <div
+                  key={doc.id}
+                  className="glass p-3 rounded-xl border border-white/5 flex items-center gap-3 relative group"
                 >
-                  <Sparkles className="w-3 h-3" /> AI Review
-                </button>
-              )}
-            </motion.div>
-          ))}
+                  <div className="p-2 bg-red-500/10 rounded-lg shrink-0">
+                    <FileText className="w-5 h-5 text-red-400" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold truncate">{doc.name}</p>
+                    <p className="text-[10px] text-gray-400">{doc.date}</p>
+                  </div>
+                  <button
+                    onClick={() => removeDocument(doc.id)}
+                    className="ml-auto p-1.5 hover:bg-red-500/20 hover:text-red-400 text-gray-500 rounded transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
-        {/* AI Assistant Sidebar */}
-        <div className="glass p-6 rounded-2xl border border-white/5 h-fit">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-gradient-to-tr from-teal-400 to-teal-600 rounded-lg">
-              <FileText className="w-5 h-5 text-white" />
-            </div>
-            <h3 className="font-bold">AI Tips</h3>
-          </div>
-
-          <div className="space-y-4">
-            <div className="bg-navy-800/50 p-4 rounded-xl border border-white/5">
-              <p className="text-sm text-gray-300 mb-2">
-                "Make sure your Personal Statement highlights your leadership in
-                the Robotics Club. Stanford values initiative."
-              </p>
-              <div className="text-xs text-teal-400 font-bold">
-                Based on your Profile
+        {/* Sidebar */}
+        <div className="space-y-6">
+          {/* AI Assistant Sidebar */}
+          <div className="glass p-6 rounded-2xl border border-white/5 h-fit">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-gradient-to-tr from-teal-400 to-teal-600 rounded-lg">
+                <FileText className="w-5 h-5 text-white" />
               </div>
+              <h3 className="font-bold">AI Tips</h3>
             </div>
 
-            <button
-              onClick={handleGenerateOutline}
-              disabled={generatingOutline}
-              className="w-full bg-white/5 hover:bg-white/10 text-white py-2 rounded-lg text-sm font-bold border border-white/10 transition-colors flex items-center justify-center gap-2"
-            >
-              {generatingOutline ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Sparkles className="w-4 h-4 text-gold-400" />
-              )}
-              {generatingOutline ? "Generating..." : "Generate Essay Outline"}
-            </button>
+            <div className="space-y-4">
+              <div className="bg-navy-800/50 p-4 rounded-xl border border-white/5">
+                <p className="text-sm text-gray-300 mb-2">
+                  &quot;Make sure your Personal Statement highlights your
+                  leadership in the Robotics Club. Stanford values
+                  initiative.&quot;
+                </p>
+                <div className="text-xs text-teal-400 font-bold">
+                  Based on your Profile
+                </div>
+              </div>
 
-            {/* Removed inline outline display in favor of modal */}
+              <button
+                onClick={handleGenerateOutline}
+                disabled={generatingOutline}
+                className="w-full bg-white/5 hover:bg-white/10 text-white py-2 rounded-lg text-sm font-bold border border-white/10 transition-colors flex items-center justify-center gap-2"
+              >
+                {generatingOutline ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Sparkles className="w-4 h-4 text-gold-400" />
+                )}
+                {generatingOutline ? "Generating..." : "Generate Essay Outline"}
+              </button>
+            </div>
           </div>
+
+          {/* AI Standout Strategies (Pro Tips) */}
+          <div className="glass p-6 rounded-2xl border border-white/5 h-fit">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-purple-500/20 rounded-lg">
+                <Sparkles className="w-5 h-5 text-purple-400" />
+              </div>
+              <h3 className="font-bold">Standout Strategies</h3>
+            </div>
+
+            {tipsLoading ? (
+              <div className="space-y-3 animate-pulse">
+                <div className="h-16 bg-navy-800/50 rounded-xl"></div>
+                <div className="h-16 bg-navy-800/50 rounded-xl"></div>
+                <div className="h-16 bg-navy-800/50 rounded-xl"></div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {tips.length > 0 ? (
+                  tips.map((tip, i) => (
+                    <div
+                      key={i}
+                      className="p-3 rounded-lg bg-navy-800/50 border border-white/5 text-sm text-gray-300 flex gap-3"
+                    >
+                      <div className="shrink-0 mt-0.5">
+                        <div className="w-1.5 h-1.5 rounded-full bg-purple-400 mt-1.5" />
+                      </div>
+                      <div className="prose prose-invert prose-sm leading-snug">
+                        <ReactMarkdown
+                          components={{
+                            p: ({ node, ...props }) => <span {...props} />,
+                          }}
+                        >
+                          {tip.replace(/^-\s*/, "")}
+                        </ReactMarkdown>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-sm text-gray-500 italic">
+                    No specific strategies found. Ensure your profile is
+                    updated.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Removed Quick Resources Hub */}
         </div>
       </div>
 

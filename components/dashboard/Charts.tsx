@@ -54,16 +54,31 @@ export function ProfileRadar({ strength }: { strength: number }) {
   );
 }
 
-export function ReadinessGraph({ stage }: { stage: string }) {
+export function ReadinessGraph({
+  strength,
+  startDate,
+}: {
+  strength: number;
+  startDate?: string;
+}) {
+  // Generate a realistic looking "history" based on current strength and start date
+  const end = new Date();
+  const start = startDate
+    ? new Date(startDate)
+    : new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000); // Default to 30 days ago
+
+  // Calculate 4 points: Start, 1/3, 2/3, End
+  const getPointDate = (ratio: number) => {
+    const timeDiff = end.getTime() - start.getTime();
+    const date = new Date(start.getTime() + timeDiff * ratio);
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  };
+
   const data = [
-    { name: "Week 1", score: 20 },
-    { name: "Week 2", score: 35 },
-    { name: "Week 3", score: 45 },
-    { name: "Week 4", score: 60 },
-    {
-      name: "Current",
-      score: stage === "GUIDANCE" ? 85 : stage === "SHORTLIST" ? 50 : 30,
-    },
+    { name: getPointDate(0), score: Math.round(strength * 0.4) }, // Start date
+    { name: getPointDate(0.33), score: Math.round(strength * 0.6) },
+    { name: getPointDate(0.66), score: Math.round(strength * 0.8) },
+    { name: "Today", score: strength },
   ];
 
   return (

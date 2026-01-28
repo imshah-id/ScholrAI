@@ -147,34 +147,34 @@ export default function CounsellorPage() {
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{
-                      p: ({ children }: { children: React.ReactNode }) => (
+                      p: ({ children }: any) => (
                         <p className="mb-2 last:mb-0">{children}</p>
                       ),
-                      ul: ({ children }: { children: React.ReactNode }) => (
+                      ul: ({ children }: any) => (
                         <ul className="list-disc list-outside ml-4 mb-2 space-y-1">
                           {children}
                         </ul>
                       ),
-                      ol: ({ children }: { children: React.ReactNode }) => (
+                      ol: ({ children }: any) => (
                         <ol className="list-decimal list-outside ml-4 mb-2 space-y-1">
                           {children}
                         </ol>
                       ),
-                      li: ({ children }: { children: React.ReactNode }) => (
+                      li: ({ children }: any) => (
                         <li className="text-gray-300">{children}</li>
                       ),
-                      h1: ({ children }: { children: React.ReactNode }) => (
-                        <h1 className="text-lg font-bold text-white mt-4 mb-2">
+                      h1: ({ children }: any) => (
+                        <h1 className="text-xl font-bold text-white mt-4 mb-2">
                           {children}
                         </h1>
                       ),
-                      h2: ({ children }: { children: React.ReactNode }) => (
-                        <h2 className="text-base font-bold text-white mt-3 mb-2">
+                      h2: ({ children }: any) => (
+                        <h2 className="text-lg font-bold text-white mt-3 mb-2">
                           {children}
                         </h2>
                       ),
-                      h3: ({ children }: { children: React.ReactNode }) => (
-                        <h3 className="text-sm font-bold text-white mt-2 mb-1">
+                      h3: ({ children }: any) => (
+                        <h3 className="text-base font-bold text-white mt-2 mb-1">
                           {children}
                         </h3>
                       ),
@@ -198,22 +198,12 @@ export default function CounsellorPage() {
                           </code>
                         );
                       },
-                      blockquote: ({
-                        children,
-                      }: {
-                        children: React.ReactNode;
-                      }) => (
+                      blockquote: ({ children }: any) => (
                         <blockquote className="border-l-4 border-teal-500/50 pl-4 py-1 my-2 italic text-gray-400 bg-teal-500/5 rounded-r-lg">
                           {children}
                         </blockquote>
                       ),
-                      a: ({
-                        href,
-                        children,
-                      }: {
-                        href?: string;
-                        children: React.ReactNode;
-                      }) => (
+                      a: ({ href, children }: any) => (
                         <a
                           href={href}
                           target="_blank"
@@ -223,32 +213,32 @@ export default function CounsellorPage() {
                           {children}
                         </a>
                       ),
-                      table: ({ children }: { children: React.ReactNode }) => (
+                      table: ({ children }: any) => (
                         <div className="overflow-x-auto my-3 rounded-lg border border-white/10">
                           <table className="w-full text-left text-sm">
                             {children}
                           </table>
                         </div>
                       ),
-                      thead: ({ children }: { children: React.ReactNode }) => (
+                      thead: ({ children }: any) => (
                         <thead className="bg-white/5 text-gray-200">
                           {children}
                         </thead>
                       ),
-                      tbody: ({ children }: { children: React.ReactNode }) => (
+                      tbody: ({ children }: any) => (
                         <tbody className="divide-y divide-white/5">
                           {children}
                         </tbody>
                       ),
-                      tr: ({ children }: { children: React.ReactNode }) => (
+                      tr: ({ children }: any) => (
                         <tr className="hover:bg-white/5 transition-colors">
                           {children}
                         </tr>
                       ),
-                      th: ({ children }: { children: React.ReactNode }) => (
+                      th: ({ children }: any) => (
                         <th className="px-4 py-2 font-semibold">{children}</th>
                       ),
-                      td: ({ children }: { children: React.ReactNode }) => (
+                      td: ({ children }: any) => (
                         <td className="px-4 py-2 text-gray-300">{children}</td>
                       ),
                     }}

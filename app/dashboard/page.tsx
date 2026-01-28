@@ -17,6 +17,7 @@ import { ProfileRadar, ReadinessGraph } from "@/components/dashboard/Charts";
 export default function DashboardPage() {
   const [userName, setUserName] = useState("Scholar");
   const [stage, setStage] = useState("Discovery");
+  const [startDate, setStartDate] = useState<string | undefined>(undefined);
   const [stats, setStats] = useState({
     strength: 0,
     chance: 0,
@@ -29,6 +30,7 @@ export default function DashboardPage() {
       .then((data) => {
         if (data.fullName) setUserName(data.fullName.split(" ")[0]);
         if (data.currentStage) setStage(data.currentStage);
+        if (data.createdAt) setStartDate(data.createdAt);
 
         // Stats from API
         const strength = data.profileStrength || 0;
@@ -43,32 +45,104 @@ export default function DashboardPage() {
       .catch((err) => console.error(err));
   }, []);
 
+  // Determine step status based on current stage
+  const getStepStatus = (stepId: number) => {
+    // Map stages to completed step count
+    // PROFILE (0) -> DISCOVERY (1) -> SHORTLIST (2) -> GUIDANCE (3)
+    const stageMap: Record<string, number> = {
+      PROFILE: 0,
+      DISCOVERY: 1,
+      SHORTLIST: 2,
+      GUIDANCE: 3,
+    };
+
+    const currentStepIndex = stageMap[stage] ?? 1; // Default to Discovery (1) if unknown
+
+    if (stepId <= currentStepIndex) return "completed";
+    if (stepId === currentStepIndex + 1) return "active";
+    return "locked";
+  };
+
   const steps = [
     {
       id: 1,
       name: "Build Profile",
-      status: "completed",
+      status: getStepStatus(1),
       link: "/dashboard/profile",
     },
     {
       id: 2,
       name: "Discover Universities",
-      status: "active",
+      status: getStepStatus(2),
       link: "/dashboard/universities",
     },
     {
       id: 3,
       name: "Shortlist",
-      status: "locked",
+      status: getStepStatus(3),
       link: "/dashboard/shortlist",
     },
     {
       id: 4,
       name: "Application Guidance",
-      status: "locked",
+      status: getStepStatus(4),
       link: "/dashboard/guidance",
     },
   ];
+
+  // Helper to generate dynamic future dates
+  const getDynamicDeadlines = () => {
+    const today = new Date();
+    const months = [
+      "JAN",
+      "FEB",
+      "MAR",
+      "APR",
+      "MAY",
+      "JUN",
+      "JUL",
+      "AUG",
+      "SEP",
+      "OCT",
+      "NOV",
+      "DEC",
+    ];
+
+    // Deadline 1: Target Roughly 2 months out (Early Action)
+    const d1 = new Date(today);
+    d1.setMonth(d1.getMonth() + 2);
+
+    // Deadline 2: Target Roughly 3 months out (Regular)
+    const d2 = new Date(today);
+    d2.setMonth(d2.getMonth() + 3);
+
+    // Deadline 3: Scholarship (Next Month)
+    const d3 = new Date(today);
+    d3.setMonth(d3.getMonth() + 1);
+
+    return [
+      {
+        month: months[d1.getMonth()],
+        day: "15",
+        type: "Early Action",
+        school: "Target Universities",
+      },
+      {
+        month: months[d2.getMonth()],
+        day: "01",
+        type: "Regular Decision",
+        school: "All Shortlisted",
+      },
+      {
+        month: months[d3.getMonth()],
+        day: "28",
+        type: "Scholarships",
+        school: "Global Merit",
+      },
+    ];
+  };
+
+  const deadlines = getDynamicDeadlines();
 
   return (
     <motion.div
@@ -252,7 +326,7 @@ export default function DashboardPage() {
                 Last 30 Days
               </span>
             </div>
-            <ReadinessGraph stage={stage} />
+            <ReadinessGraph strength={stats.strength} startDate={startDate} />
           </div>
         </div>
 
@@ -274,42 +348,30 @@ export default function DashboardPage() {
           {/* Upcoming Deadlines */}
           <div className="glass p-6 rounded-2xl border border-white/5">
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-red-400" /> Upcoming
+              <Calendar className="w-5 h-5 text-red-400" /> Upcoming Deadlines
             </h3>
             <div className="space-y-4">
-              {/* Mock Data for MVP */}
-              <div className="flex items-center gap-3">
-                <div className="text-center bg-navy-800 rounded-lg p-2 min-w-[50px]">
-                  <div className="text-xs text-red-400 font-bold">DEC</div>
-                  <div className="text-lg font-bold">15</div>
-                </div>
-                <div>
-                  <div className="font-bold text-sm">Early Action Deadline</div>
-                  <div className="text-xs text-gray-400">
-                    Stanford University
+              {deadlines.map((item, i) => (
+                <div
+                  key={i}
+                  className={`flex items-center gap-3 ${i === 2 ? "opacity-80" : ""}`}
+                >
+                  <div className="text-center bg-navy-800 rounded-lg p-2 min-w-[50px]">
+                    <div
+                      className={`text-xs font-bold ${i === 0 ? "text-red-400" : i === 1 ? "text-orange-400" : "text-blue-400"}`}
+                    >
+                      {item.month}
+                    </div>
+                    <div className="text-lg font-bold">{item.day}</div>
+                  </div>
+                  <div>
+                    <div className="font-bold text-sm w-32 md:w-auto truncate">
+                      {item.type}
+                    </div>
+                    <div className="text-xs text-gray-400">{item.school}</div>
                   </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="text-center bg-navy-800 rounded-lg p-2 min-w-[50px]">
-                  <div className="text-xs text-orange-400 font-bold">JAN</div>
-                  <div className="text-lg font-bold">01</div>
-                </div>
-                <div>
-                  <div className="font-bold text-sm">Regular Decision</div>
-                  <div className="text-xs text-gray-400">MIT & Harvard</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 opacity-60">
-                <div className="text-center bg-navy-800 rounded-lg p-2 min-w-[50px]">
-                  <div className="text-xs text-blue-400 font-bold">FEB</div>
-                  <div className="text-lg font-bold">15</div>
-                </div>
-                <div>
-                  <div className="font-bold text-sm">Scholarship App</div>
-                  <div className="text-xs text-gray-400">Global Excellence</div>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Button } from "@/components/ui/button"; // We'll create this later or use standard HTML for now if button generic not ready
+
 import { motion } from "framer-motion";
 import { GraduationCap } from "lucide-react";
 

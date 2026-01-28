@@ -145,6 +145,7 @@ export async function GET() {
       id: user.id,
       fullName: user.fullName,
       email: user.email,
+      createdAt: user.createdAt,
       ...user.profile,
       currentStage: calculatedStage, // Return computed stage
       profileStrength: strength,

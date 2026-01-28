@@ -4,8 +4,13 @@ import { motion } from "framer-motion";
 import { Search, Filter, Star, MapPin, Check, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 
+import { useRouter } from "next/navigation";
+
 export default function DiscoveryPage() {
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
+  // ... (rest of code)
+
   const [universities, setUniversities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [shortlisted, setShortlisted] = useState<Set<string>>(new Set());
@@ -272,6 +277,9 @@ export default function DiscoveryPage() {
                   <div className="flex gap-2">
                     <motion.button
                       whileTap={{ scale: 0.95 }}
+                      onClick={() =>
+                        router.push(`/dashboard/universities/${uni.id}`)
+                      }
                       className="flex-1 bg-white/5 hover:bg-white/10 text-white py-2 rounded-lg font-medium text-sm transition-all border border-white/10 hover:border-white/30 cursor-pointer"
                     >
                       Details
