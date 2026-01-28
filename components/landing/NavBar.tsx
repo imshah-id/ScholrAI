@@ -4,7 +4,6 @@ import Link from "next/link";
 
 import { motion } from "framer-motion";
 import { GraduationCap } from "lucide-react";
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 export function NavBar() {
   return (

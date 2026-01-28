@@ -28,7 +28,25 @@ export interface CanonicalProfile {
   };
 }
 
-// ... (omitted CanonicalUniversity interface) ...
+export interface CanonicalUniversity {
+  id: string;
+  name: string;
+  rank: number;
+  location: {
+    country: string;
+    city: string;
+  };
+  costs: {
+    tuition: number;
+    currency: string;
+  };
+  difficulty: {
+    acceptance_rate: number;
+    academic_expectation: number;
+    language_expectation: number;
+  };
+  tags: string[];
+}
 
 // --- Helper Functions ---
 function parseFee(feeStr: string): number {
