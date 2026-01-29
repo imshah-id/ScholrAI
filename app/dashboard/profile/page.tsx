@@ -190,11 +190,12 @@ export default function ProfilePage() {
       countries: updatedData.preferredCountries,
     }));
 
-    // Ideally re-fetch from server to get accurate new score, but let's just show success
-    // The user will see updated score on next load or we could force reload
-    window.location.reload();
-    // Or we could have extracted fetchUserAndDocs to be reusable
-    // but a reload is safer for ensuring all server-side score logic runs
+    // Trigger success animation
+    setShowSuccess(true);
+    setTimeout(() => setShowSuccess(false), 3000);
+
+    // Close modal
+    setIsEditOpen(false);
   };
 
   if (loading)

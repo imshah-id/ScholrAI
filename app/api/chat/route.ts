@@ -4,7 +4,7 @@ import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
 const SYSTEM_INSTRUCTION = `
 You are the ScholrAI Counsellor, an expert educational consultant for students aiming to study abroad.

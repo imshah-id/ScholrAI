@@ -25,11 +25,13 @@ export default function DashboardPage() {
     chance: 0,
     readiness: "Low",
   });
+  const [profileData, setProfileData] = useState<any>(null);
 
   useEffect(() => {
     fetch("/api/user/me")
       .then((res) => res.json())
       .then((data) => {
+        setProfileData(data);
         if (data.fullName) setUserName(data.fullName.split(" ")[0]);
         if (data.currentStage) setStage(data.currentStage);
         if (data.createdAt) setStartDate(data.createdAt);
@@ -46,6 +48,89 @@ export default function DashboardPage() {
       })
       .catch((err) => console.error(err));
   }, []);
+
+  const generateSmartSteps = () => {
+    if (!profileData) return [];
+
+    const actions = [];
+    const {
+      gpa,
+      englishTest,
+      preferredCountries,
+      shortlistCount,
+      hasLockedUni,
+    } = profileData;
+
+    // 1. Critical Profile Gaps
+    if (!gpa || gpa === "0") {
+      actions.push({
+        id: "gpa",
+        title: "Complete Academic Profile",
+        desc: "Add your GPA to see accurate university matches.",
+        link: "/dashboard/profile",
+        icon: UserCheck,
+        color: "red",
+      });
+    }
+
+    // 2. Shortlist Logic
+    if (!hasLockedUni) {
+      if ((shortlistCount || 0) === 0) {
+        // Parse countries
+        let countryText = "Universities";
+        try {
+          const cList = JSON.parse(preferredCountries || "[]");
+          if (cList.length > 0) countryText = `Schools in ${cList[0]}`;
+        } catch (e) {}
+
+        actions.push({
+          id: "search",
+          title: `Explore ${countryText}`,
+          desc: "Start by shortlisting at least 3 universities.",
+          link: "/dashboard/universities",
+          icon: BookOpen,
+          color: "primary",
+        });
+      } else {
+        actions.push({
+          id: "lock",
+          title: "Lock Your Target",
+          desc: "Commit to one university to generate your SOP task list.",
+          link: "/dashboard/shortlist",
+          icon: Lock,
+          color: "green",
+        });
+      }
+    }
+
+    // 3. Guidance Logic
+    if (hasLockedUni) {
+      actions.push({
+        id: "sop",
+        title: "Start Application",
+        desc: "Begin drafting your Statement of Purpose.",
+        link: "/dashboard/guidance",
+        icon: CheckCircle2,
+        color: "teal",
+      });
+    }
+
+    // 4. Boost Logic (Always present if not perfect)
+    if ((profileData.profileStrength || 0) < 80) {
+      actions.push({
+        id: "boost",
+        title: "Boost Admission Chance",
+        desc: "Upload certificates to increase profile strength.",
+        link: "/dashboard/profile",
+        icon: TrendingUp,
+        color: "purple",
+      });
+    }
+
+    return actions;
+  };
+
+  const smartActions = generateSmartSteps();
 
   // Determine step status based on current stage
   const getStepStatus = (stepId: number) => {
@@ -253,98 +338,68 @@ export default function DashboardPage() {
               Steps
             </h3>
             <div className="space-y-3">
-              {stage === "DISCOVERY" && (
-                <Link href="/dashboard/universities">
-                  <motion.div
-                    whileHover={{ scale: 1.01 }}
-                    className="p-4 rounded-xl bg-navy-800/50 border border-white/5 hover:border-primary/30 hover:bg-navy-800 transition-all flex items-center justify-between group cursor-pointer"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
-                        1
-                      </div>
-                      <div>
-                        <div className="font-bold group-hover:text-primary transition-colors">
-                          Shortlist 3 Universities
+              {smartActions.length > 0 ? (
+                smartActions.map((action, i) => (
+                  <Link href={action.link} key={action.id}>
+                    <motion.div
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.1 }}
+                      whileHover={{ scale: 1.01 }}
+                      className={`p-4 rounded-xl bg-navy-800/50 border border-white/5 hover:bg-navy-800 transition-all flex items-center justify-between group cursor-pointer 
+                      ${action.color === "primary" ? "hover:border-primary/30" : ""}
+                      ${action.color === "green" ? "hover:border-green-500/30" : ""}
+                      ${action.color === "teal" ? "hover:border-teal-500/30" : ""}
+                      ${action.color === "purple" ? "hover:border-purple-500/30" : ""}
+                      ${action.color === "red" ? "hover:border-red-500/30" : ""}
+                    `}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div
+                          className={`w-10 h-10 rounded-full flex items-center justify-center font-bold
+                        ${action.color === "primary" ? "bg-primary/20 text-primary" : ""}
+                        ${action.color === "green" ? "bg-green-500/20 text-green-500" : ""}
+                        ${action.color === "teal" ? "bg-teal-500/20 text-teal-500" : ""}
+                        ${action.color === "purple" ? "bg-purple-500/20 text-purple-500" : ""}
+                        ${action.color === "red" ? "bg-red-500/20 text-red-500" : ""}
+                      `}
+                        >
+                          <action.icon className="w-5 h-5" />
                         </div>
-                        <div className="text-xs text-gray-400">
-                          Find ambitious, target, and safe schools.
+                        <div>
+                          <div
+                            className={`font-bold transition-colors
+                          ${action.color === "primary" ? "group-hover:text-primary" : ""}
+                          ${action.color === "green" ? "group-hover:text-green-400" : ""}
+                          ${action.color === "teal" ? "group-hover:text-teal-400" : ""}
+                          ${action.color === "purple" ? "group-hover:text-purple-400" : ""}
+                          ${action.color === "red" ? "group-hover:text-red-400" : ""}
+                        `}
+                          >
+                            {action.title}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            {action.desc}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <ArrowRight className="w-5 h-5 text-gray-500 group-hover:text-primary transition-colors" />
-                  </motion.div>
-                </Link>
+                      <ArrowRight
+                        className={`w-5 h-5 text-gray-500 transition-colors
+                       ${action.color === "primary" ? "group-hover:text-primary" : ""}
+                       ${action.color === "green" ? "group-hover:text-green-400" : ""}
+                       ${action.color === "teal" ? "group-hover:text-teal-400" : ""}
+                       ${action.color === "purple" ? "group-hover:text-purple-400" : ""}
+                       ${action.color === "red" ? "group-hover:text-red-400" : ""}
+                    `}
+                      />
+                    </motion.div>
+                  </Link>
+                ))
+              ) : (
+                <div className="text-center text-gray-500 py-4">
+                  Great job! You're all caught up.
+                </div>
               )}
-              {stage === "SHORTLIST" && (
-                <Link href="/dashboard/shortlist">
-                  <motion.div
-                    whileHover={{ scale: 1.01 }}
-                    className="p-4 rounded-xl bg-navy-800/50 border border-white/5 hover:border-green-500/30 hover:bg-navy-800 transition-all flex items-center justify-between group cursor-pointer"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center text-green-500 font-bold">
-                        !
-                      </div>
-                      <div>
-                        <div className="font-bold group-hover:text-green-400 transition-colors">
-                          Lock Your First Choice
-                        </div>
-                        <div className="text-xs text-gray-400">
-                          Commit to a university to unlock specific guidance
-                          tasks.
-                        </div>
-                      </div>
-                    </div>
-                    <ArrowRight className="w-5 h-5 text-gray-500 group-hover:text-green-400 transition-colors" />
-                  </motion.div>
-                </Link>
-              )}
-              {stage === "GUIDANCE" && (
-                <Link href="/dashboard/guidance">
-                  <motion.div
-                    whileHover={{ scale: 1.01 }}
-                    className="p-4 rounded-xl bg-navy-800/50 border border-white/5 hover:border-teal-500/30 hover:bg-navy-800 transition-all flex items-center justify-between group cursor-pointer"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-teal-500/20 flex items-center justify-center text-teal-500 font-bold">
-                        2
-                      </div>
-                      <div>
-                        <div className="font-bold group-hover:text-teal-400 transition-colors">
-                          Start Reviewing Requirements
-                        </div>
-                        <div className="text-xs text-gray-400">
-                          Check document checklist for your locked university.
-                        </div>
-                      </div>
-                    </div>
-                    <ArrowRight className="w-5 h-5 text-gray-500 group-hover:text-teal-400 transition-colors" />
-                  </motion.div>
-                </Link>
-              )}
-
-              <Link href="/dashboard/profile">
-                <motion.div
-                  whileHover={{ scale: 1.01 }}
-                  className="p-4 rounded-xl bg-navy-800/50 border border-white/5 hover:border-purple-500/30 hover:bg-navy-800 transition-all flex items-center justify-between group cursor-pointer"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-500 font-bold">
-                      +
-                    </div>
-                    <div>
-                      <div className="font-bold group-hover:text-purple-400 transition-colors">
-                        Boost Profile Strength
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        Add more details to increase your admission chances.
-                      </div>
-                    </div>
-                  </div>
-                  <ArrowRight className="w-5 h-5 text-gray-500 group-hover:text-purple-400 transition-colors" />
-                </motion.div>
-              </Link>
             </div>
           </motion.div>
 

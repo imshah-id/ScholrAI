@@ -150,6 +150,8 @@ export async function GET() {
       currentStage: calculatedStage, // Return computed stage
       profileStrength: strength,
       admissionChance: Math.round(chance),
+      shortlistCount: shortlistItems.length,
+      hasLockedUni: hasLocked,
     });
   } catch (error) {
     console.error("Fetch user error:", error);
