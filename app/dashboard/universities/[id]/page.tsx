@@ -15,6 +15,12 @@ import {
   BookOpen,
   Loader2,
 } from "lucide-react";
+import {
+  containerStagger,
+  slideUp,
+  slideInLeft,
+  slideInRight,
+} from "@/lib/animations";
 
 export default function UniversityDetailsPage() {
   const { id } = useParams();

@@ -62,6 +62,13 @@ const CITIZENSHIP_OPTIONS = [
   "Other",
 ];
 
+const TEST_MAX_SCORES: Record<string, number> = {
+  IELTS: 9,
+  TOEFL: 120,
+  Duolingo: 160,
+  PTE: 90,
+};
+
 // Types for form data
 type OnboardingData = {
   fullName: string;
@@ -435,6 +442,18 @@ export default function OnboardingPage() {
         return;
       }
 
+      const val = parseFloat(score);
+      const testType = store.englishTest;
+      const maxScore = TEST_MAX_SCORES[testType];
+
+      if (maxScore && val > maxScore) {
+        speak(
+          `That score seems too high. The maximum for ${testType} is ${maxScore}. Could you repeat it?`,
+          () => startListening(),
+        );
+        return;
+      }
+
       updateStore({ testScore: score });
       speak(
         `Got it, ${score}. Now, which country is your top preference?`,
@@ -686,8 +705,31 @@ export default function OnboardingPage() {
         return;
       }
       const gpaValue = parseFloat(data.gpa);
-      // ... (Rest of existing validation mostly reused or skipped for brevity in this replace block,
-      // but assuming user wants robust code, I will include abbreviated validation or re-include it)
+      if (gpaValue < 0) {
+        showAlert("GPA cannot be negative.", "error");
+        return;
+      }
+
+      if (data.gpaScale === "Percentage") {
+        if (gpaValue > 100) {
+          showAlert("Percentage cannot exceed 100%.", "error");
+          return;
+        }
+      } else {
+        const maxScale = parseFloat(data.gpaScale);
+        if (gpaValue > maxScale) {
+          showAlert(
+            `GPA cannot exceed the selected scale of ${maxScale}.`,
+            "error",
+          );
+          return;
+        }
+      }
+
+      if (data.englishTest !== "None" && !data.testScore) {
+        showAlert(`Please enter your ${data.englishTest} score.`, "error");
+        return;
+      }
     }
 
     if (step < 3) {
@@ -745,7 +787,7 @@ export default function OnboardingPage() {
             </motion.p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8 px-4">
+          <div className="grid grid-cols-2 gap-4 md:gap-8 px-2 md:px-4">
             {/* Manual Card */}
             <motion.div
               initial={{ opacity: 0, x: -50 }}
@@ -1186,9 +1228,15 @@ export default function OnboardingPage() {
                             : ""
                         }`}
                         value={data.testScore}
-                        onChange={(e) =>
-                          updateData("testScore", e.target.value)
-                        }
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const numVal = parseFloat(val);
+                          const max = TEST_MAX_SCORES[data.englishTest];
+
+                          if (val === "" || (max && numVal <= max)) {
+                            updateData("testScore", val);
+                          }
+                        }}
                         disabled={data.englishTest === "None"}
                       />
                     </div>

@@ -197,12 +197,12 @@ export async function PATCH(req: Request) {
           },
         ];
 
-        for (const task of COMPREHENSIVE_TASKS) {
-          await prisma.guidanceTask.create({
-            data: {
+        if (COMPREHENSIVE_TASKS.length > 0) {
+          await prisma.guidanceTask.createMany({
+            data: COMPREHENSIVE_TASKS.map((task) => ({
               shortlistId: updated.id,
               ...task,
-            },
+            })),
           });
         }
       }

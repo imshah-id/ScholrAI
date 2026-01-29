@@ -46,7 +46,7 @@ export const AlertProvider = ({ children }: { children: React.ReactNode }) => {
   return (
     <AlertContext.Provider value={{ showAlert }}>
       {children}
-      <div className="fixed top-6 left-0 right-0 z-[100] flex flex-col items-center gap-3 pointer-events-none p-4">
+      <div className="fixed top-6 left-0 right-0 z-9999 flex flex-col items-center gap-3 pointer-events-none p-4">
         <AnimatePresence>
           {alerts.map((alert) => (
             <motion.div

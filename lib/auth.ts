@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs";
+import bcrypt from "bcrypt";
 import { cookies } from "next/headers";
 
 const JWT_SECRET = process.env.JWT_SECRET || "scholrai-super-secret-key-123";

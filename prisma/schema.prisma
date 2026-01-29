@@ -60,6 +60,10 @@ model University {
   acceptanceRate String
   tags           String // JSON string of tags
   shortlistedBy  Shortlist[]
+
+  @@index([country])
+  @@index([location])
+  @@index([rank])
 }
 
 model Shortlist {
@@ -73,6 +77,7 @@ model Shortlist {
   guidanceTasks GuidanceTask[]
 
   @@unique([userId, universityId])
+  @@index([userId])
 }
 
 model GuidanceTask {
@@ -83,4 +88,6 @@ model GuidanceTask {
   type        String    // Essay, Admin, Documents
   status      String    @default("pending") // pending, completed
   dueDate     String?   // mocked for now, or DateTime
+
+  @@index([shortlistId])
 }

@@ -12,9 +12,11 @@ import {
   CheckCircle,
   AlertCircle,
 } from "lucide-react";
-import { toast } from "sonner";
+import { useAlert } from "@/components/ui/AlertSystem";
 
 export default function SignupPage() {
+  const router = useRouter();
+  const { showAlert } = useAlert();
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -22,21 +24,19 @@ export default function SignupPage() {
     confirmPassword: "",
   });
   const [loading, setLoading] = useState(false);
-  // Removed local error states in favor of toast
-  const router = useRouter();
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setLoading(true);
 
     if (formData.password.length < 6) {
-      toast.error("Password must be at least 6 characters long");
+      showAlert("Password must be at least 6 characters long", "error");
       setLoading(false);
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      toast.error("Passwords do not match");
+      showAlert("Passwords do not match", "error");
       setLoading(false);
       return;
     }
@@ -58,7 +58,7 @@ export default function SignupPage() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Signup failed");
 
-        toast.success("Account created successfully! Redirecting...");
+        showAlert("Account created successfully! Redirecting...", "success");
 
         setTimeout(() => {
           router.push("/onboarding");
@@ -72,7 +72,7 @@ export default function SignupPage() {
         );
       }
     } catch (err: any) {
-      toast.error(err.message || "Failed to create account");
+      showAlert(err.message || "Failed to create account", "error");
       setLoading(false);
     }
     // Do not set loading false in success case to prevent UI flicker
@@ -153,7 +153,7 @@ export default function SignupPage() {
           whileTap={{ scale: 0.98 }}
           type="submit"
           disabled={loading}
-          className="w-full bg-gradient-to-r from-primary to-gold-500 hover:to-gold-400 text-navy-900 font-bold py-3.5 rounded-xl transition-all hover:shadow-[0_0_20px_rgba(250,204,21,0.3)] hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full bg-linear-to-r from-primary to-gold-500 hover:to-gold-400 text-navy-900 font-bold py-3.5 rounded-xl transition-all hover:shadow-[0_0_20px_rgba(250,204,21,0.3)] hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? "Creating Account..." : "Create Account"}{" "}
           <ArrowRight className="w-5 h-5" />

@@ -5,23 +5,26 @@ import { useState, Suspense } from "react";
 import { motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, Lock, LogIn, CheckCircle, AlertCircle } from "lucide-react";
-import { toast } from "sonner";
+import { useAlert } from "@/components/ui/AlertSystem";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { showAlert } = useAlert();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
   const [loading, setLoading] = useState(false);
-  // Removed local error/success states in favor of toast
 
   // Check for messages in URL
   const message = searchParams.get("message");
 
-  // Clean URL messages - display as toast if needed?
-  // For now just reading params is fine.
+  // Show toast if redirected with message
+  if (message === "logged_out" && loading === false) {
+    // Check if we already showed it? Effect might be better but this works for render logic if handled carefully
+    // actually let's use Effect for message toast
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,7 +32,7 @@ function LoginForm() {
 
     // Basic client-side validation
     if (!formData.email.includes("@")) {
-      toast.error("Please enter a valid email address");
+      showAlert("Please enter a valid email address", "error");
       setLoading(false);
       return;
     }
@@ -47,12 +50,12 @@ function LoginForm() {
         throw new Error(data.error || "Login failed");
       }
 
-      toast.success("Login successful! Redirecting...");
+      showAlert("Login successful! Redirecting...", "success");
       setTimeout(() => {
         router.push("/dashboard");
       }, 1000);
     } catch (err: any) {
-      toast.error(err.message || "Invalid credentials");
+      showAlert(err.message || "Invalid credentials", "error");
       setLoading(false);
     }
   };
@@ -126,7 +129,7 @@ function LoginForm() {
           whileTap={{ scale: 0.98 }}
           type="submit"
           disabled={loading}
-          className="w-full bg-gradient-to-r from-teal-500 to-teal-400 hover:to-teal-300 text-navy-900 font-bold py-3.5 rounded-xl transition-all hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full bg-linear-to-r from-teal-500 to-teal-400 hover:to-teal-300 text-navy-900 font-bold py-3.5 rounded-xl transition-all hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? (
             "Signing In..."

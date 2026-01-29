@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { Toaster } from "sonner";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -16,9 +15,9 @@ const geistMono = Geist_Mono({
 import { AlertProvider } from "@/components/ui/AlertSystem";
 
 export const metadata: Metadata = {
-  title: "ScholrAI - Navigate Your Global Education Path",
+  title: "ScholrAI | AI-Powered Study Abroad Counselor",
   description:
-    "AI-powered insights to optimize your university applications and maximize acceptance chances.",
+    "The world's first AI platform optimized for global university admissions. Analyze your profile, shortlist universities, and draft essays with precision.",
 };
 
 export default function RootLayout({
@@ -31,10 +30,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
-        <AlertProvider>
-          {children}
-          <Toaster position="top-center" richColors closeButton />
-        </AlertProvider>
+        <AlertProvider>{children}</AlertProvider>
       </body>
     </html>
   );

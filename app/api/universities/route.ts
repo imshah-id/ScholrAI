@@ -200,6 +200,16 @@ export async function GET(req: Request) {
     let universities = await prisma.university.findMany({
       where: finalWhere,
       take: 50,
+      select: {
+        id: true,
+        name: true,
+        location: true,
+        country: true,
+        rank: true,
+        fees: true,
+        acceptanceRate: true,
+        tags: true,
+      },
     });
 
     // D. Fallback: If strict filtering yields < 5 results, fetch broader set
@@ -210,6 +220,16 @@ export async function GET(req: Request) {
       const fallbackUniversities = await prisma.university.findMany({
         take: 20,
         orderBy: { rank: "asc" }, // Show top ranked first
+        select: {
+          id: true,
+          name: true,
+          location: true,
+          country: true,
+          rank: true,
+          fees: true,
+          acceptanceRate: true,
+          tags: true,
+        },
       });
 
       // Merge unique (avoid duplicates if some already matched)
