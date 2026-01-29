@@ -176,6 +176,10 @@ export default function EditProfileModal({
       });
 
       if (res.ok) {
+        // Clear cache so recommendations are re-calculated
+        sessionStorage.removeItem("scholrai_uni_recommendations");
+        sessionStorage.removeItem("scholrai_profile_data");
+
         onSave(formData);
         onClose();
       } else {

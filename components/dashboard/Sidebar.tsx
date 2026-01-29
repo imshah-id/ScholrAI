@@ -56,6 +56,12 @@ export function Sidebar() {
     setIsSigningOut(true);
     try {
       await fetch("/api/auth/logout", { method: "POST" });
+
+      // Clear persistence and cache
+      localStorage.removeItem("scholrai_chat_history");
+      sessionStorage.removeItem("scholrai_profile_data");
+      sessionStorage.removeItem("scholrai_profile_docs");
+
       // Redirect with message param so login page can show success alert
       window.location.href = "/login?message=logged_out";
     } catch (e) {

@@ -4,7 +4,7 @@ import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
 
 const SYSTEM_INSTRUCTION = `
 You are the ScholrAI Counsellor, an expert educational consultant for students aiming to study abroad.
@@ -147,7 +147,8 @@ export async function POST(req: Request) {
 
     // Creating model instance inside request to ensure env var is picked up if hot-loaded
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    // Use standard 1.5 flash for stability and speed
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
     // Filter history to ensure it complies with Gemini's requirement (User turn first)
     // The greeting is "ai", so we likely need to drop it if it's the first one.
@@ -185,6 +186,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ reply: text });
   } catch (error: any) {
     console.error("Gemini Chat Error Details:", error);
+
+    // Graceful handling of Rate Limits (429)
+    if (error.message?.includes("429") || error.status === 429) {
+      return NextResponse.json({
+        reply:
+          "I'm currently receiving too many requests. Please give me a moment to cooldown and try again in about 30 seconds.",
+      });
+    }
+
     // Return specific error if possible to help frontend debugging
     return NextResponse.json(
       { error: error.message || "Failed to process request" },

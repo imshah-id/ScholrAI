@@ -14,6 +14,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { ProfileRadar, ReadinessGraph } from "@/components/dashboard/Charts";
 import ProfileStrengthCard from "@/components/dashboard/ProfileStrengthCard";
+import { containerStagger, slideUp, fadeIn } from "@/lib/animations";
 
 export default function DashboardPage() {
   const [userName, setUserName] = useState("Scholar");
@@ -159,12 +160,13 @@ export default function DashboardPage() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
+      variants={containerStagger}
+      initial="hidden"
+      animate="visible"
       className="space-y-8"
     >
       {/* Header */}
-      <div className="flex justify-between items-end">
+      <motion.div variants={slideUp} className="flex justify-between items-end">
         <div>
           <h1 className="text-3xl font-bold">Good Evening, {userName}</h1>
           <p className="text-gray-400">
@@ -173,22 +175,37 @@ export default function DashboardPage() {
           </p>
         </div>
         <Link href="/dashboard/counsellor" className="hidden md:block">
-          <button className="bg-gradient-to-r from-teal-500 to-teal-400 hover:scale-105 transition-transform text-navy-900 font-bold px-6 py-2 rounded-lg shadow-lg shadow-teal-500/20">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="bg-gradient-to-r from-teal-500 to-teal-400 text-navy-900 font-bold px-6 py-2 rounded-lg shadow-lg shadow-teal-500/20"
+          >
             Ask AI Counsellor
-          </button>
+          </motion.button>
         </Link>
-      </div>
+      </motion.div>
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Stats & Actions (2/3 width) */}
         <div className="lg:col-span-2 space-y-6">
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <motion.div
+            variants={containerStagger}
+            className="grid grid-cols-1 sm:grid-cols-3 gap-4"
+          >
             {/* Profile Strength Card (Shared Component) */}
-            <ProfileStrengthCard strength={stats.strength} className="h-full" />
+            <motion.div variants={slideUp} className="h-full">
+              <ProfileStrengthCard
+                strength={stats.strength}
+                className="h-full"
+              />
+            </motion.div>
 
-            <div className="glass p-5 rounded-2xl border border-white/5 relative overflow-hidden group hover:border-blue-500/30 transition-colors">
+            <motion.div
+              variants={slideUp}
+              className="glass p-5 rounded-2xl border border-white/5 relative overflow-hidden group hover:border-blue-500/30 transition-colors"
+            >
               <div className="absolute right-0 top-0 w-20 h-20 bg-blue-500/10 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110" />
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 bg-blue-500/20 rounded-lg text-blue-400">
@@ -204,9 +221,12 @@ export default function DashboardPage() {
               <div className="text-xs text-green-400 font-mono flex items-center gap-1">
                 <TrendingUp className="w-3 h-3" /> Trending Up
               </div>
-            </div>
+            </motion.div>
 
-            <div className="glass p-5 rounded-2xl border border-white/5 relative overflow-hidden group hover:border-orange-500/30 transition-colors">
+            <motion.div
+              variants={slideUp}
+              className="glass p-5 rounded-2xl border border-white/5 relative overflow-hidden group hover:border-orange-500/30 transition-colors"
+            >
               <div className="absolute right-0 top-0 w-20 h-20 bg-orange-500/10 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110" />
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 bg-orange-500/20 rounded-lg text-orange-400">
@@ -220,11 +240,14 @@ export default function DashboardPage() {
                 {stats.chance}%
               </div>
               <div className="text-xs text-gray-500">Avg. for targets</div>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
 
           {/* Recommended Actions */}
-          <div className="glass p-6 rounded-2xl border border-white/5">
+          <motion.div
+            variants={slideUp}
+            className="glass p-6 rounded-2xl border border-white/5"
+          >
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
               <CheckCircle2 className="w-5 h-5 text-primary" /> Recommended Next
               Steps
@@ -232,7 +255,10 @@ export default function DashboardPage() {
             <div className="space-y-3">
               {stage === "DISCOVERY" && (
                 <Link href="/dashboard/universities">
-                  <div className="p-4 rounded-xl bg-navy-800/50 border border-white/5 hover:border-primary/30 hover:bg-navy-800 transition-all flex items-center justify-between group cursor-pointer">
+                  <motion.div
+                    whileHover={{ scale: 1.01 }}
+                    className="p-4 rounded-xl bg-navy-800/50 border border-white/5 hover:border-primary/30 hover:bg-navy-800 transition-all flex items-center justify-between group cursor-pointer"
+                  >
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
                         1
@@ -247,12 +273,15 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <ArrowRight className="w-5 h-5 text-gray-500 group-hover:text-primary transition-colors" />
-                  </div>
+                  </motion.div>
                 </Link>
               )}
               {stage === "SHORTLIST" && (
                 <Link href="/dashboard/shortlist">
-                  <div className="p-4 rounded-xl bg-navy-800/50 border border-white/5 hover:border-green-500/30 hover:bg-navy-800 transition-all flex items-center justify-between group cursor-pointer">
+                  <motion.div
+                    whileHover={{ scale: 1.01 }}
+                    className="p-4 rounded-xl bg-navy-800/50 border border-white/5 hover:border-green-500/30 hover:bg-navy-800 transition-all flex items-center justify-between group cursor-pointer"
+                  >
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center text-green-500 font-bold">
                         !
@@ -268,12 +297,15 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <ArrowRight className="w-5 h-5 text-gray-500 group-hover:text-green-400 transition-colors" />
-                  </div>
+                  </motion.div>
                 </Link>
               )}
               {stage === "GUIDANCE" && (
                 <Link href="/dashboard/guidance">
-                  <div className="p-4 rounded-xl bg-navy-800/50 border border-white/5 hover:border-teal-500/30 hover:bg-navy-800 transition-all flex items-center justify-between group cursor-pointer">
+                  <motion.div
+                    whileHover={{ scale: 1.01 }}
+                    className="p-4 rounded-xl bg-navy-800/50 border border-white/5 hover:border-teal-500/30 hover:bg-navy-800 transition-all flex items-center justify-between group cursor-pointer"
+                  >
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-full bg-teal-500/20 flex items-center justify-center text-teal-500 font-bold">
                         2
@@ -288,12 +320,15 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <ArrowRight className="w-5 h-5 text-gray-500 group-hover:text-teal-400 transition-colors" />
-                  </div>
+                  </motion.div>
                 </Link>
               )}
 
               <Link href="/dashboard/profile">
-                <div className="p-4 rounded-xl bg-navy-800/50 border border-white/5 hover:border-purple-500/30 hover:bg-navy-800 transition-all flex items-center justify-between group cursor-pointer">
+                <motion.div
+                  whileHover={{ scale: 1.01 }}
+                  className="p-4 rounded-xl bg-navy-800/50 border border-white/5 hover:border-purple-500/30 hover:bg-navy-800 transition-all flex items-center justify-between group cursor-pointer"
+                >
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-500 font-bold">
                       +
@@ -308,13 +343,16 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   <ArrowRight className="w-5 h-5 text-gray-500 group-hover:text-purple-400 transition-colors" />
-                </div>
+                </motion.div>
               </Link>
             </div>
-          </div>
+          </motion.div>
 
           {/* Readiness Graph */}
-          <div className="glass p-6 rounded-2xl border border-white/5">
+          <motion.div
+            variants={slideUp}
+            className="glass p-6 rounded-2xl border border-white/5"
+          >
             <div className="flex justify-between items-center mb-2">
               <h3 className="text-lg font-bold">Readiness Timeline</h3>
               <span className="text-xs bg-navy-800 px-2 py-1 rounded text-gray-400">
@@ -322,13 +360,16 @@ export default function DashboardPage() {
               </span>
             </div>
             <ReadinessGraph strength={stats.strength} startDate={startDate} />
-          </div>
+          </motion.div>
         </div>
 
         {/* Right Column: Radar & Deadlines (1/3 width) */}
         <div className="space-y-6">
           {/* Profile Radar Chart */}
-          <div className="glass p-6 rounded-2xl border border-white/5 flex flex-col items-center">
+          <motion.div
+            variants={slideUp}
+            className="glass p-6 rounded-2xl border border-white/5 flex flex-col items-center"
+          >
             <h3 className="text-lg font-bold mb-2 self-start">
               Profile Breakdown
             </h3>
@@ -338,16 +379,22 @@ export default function DashboardPage() {
               <span className="text-teal-400 font-bold">GPA</span> but needs
               work in <span className="text-pink-400 font-bold">Essays</span>.
             </div>
-          </div>
+          </motion.div>
 
           {/* Upcoming Deadlines */}
-          <div className="glass p-6 rounded-2xl border border-white/5">
+          <motion.div
+            variants={slideUp}
+            className="glass p-6 rounded-2xl border border-white/5"
+          >
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
               <Calendar className="w-5 h-5 text-red-400" /> Upcoming Deadlines
             </h3>
             <div className="space-y-4">
               {deadlines.map((item, i) => (
-                <div
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.1 }}
                   key={i}
                   className={`flex items-center gap-3 ${i === 2 ? "opacity-80" : ""}`}
                 >
@@ -365,15 +412,18 @@ export default function DashboardPage() {
                     </div>
                     <div className="text-xs text-gray-400">{item.school}</div>
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
 
       {/* Stages Timeline */}
-      <div className="glass p-8 rounded-2xl border border-white/5">
+      <motion.div
+        variants={slideUp}
+        className="glass p-8 rounded-2xl border border-white/5"
+      >
         <h2 className="text-xl font-bold mb-6">Application Journey</h2>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {steps.map((step, i) => (
@@ -381,7 +431,10 @@ export default function DashboardPage() {
               href={step.status === "locked" ? "#" : step.link}
               key={step.id}
             >
-              <div
+              <motion.div
+                whileHover={
+                  step.status !== "locked" ? { scale: 1.02, y: -2 } : {}
+                }
                 className={`
                             relative p-6 rounded-xl border border-dashed transition-all h-full flex flex-col justify-between
                             ${step.status === "completed" ? "bg-green-500/10 border-green-500/30 text-green-400" : ""}
@@ -407,11 +460,11 @@ export default function DashboardPage() {
                   )}
                   {step.status === "locked" && <Lock className="w-6 h-6" />}
                 </div>
-              </div>
+              </motion.div>
             </Link>
           ))}
         </div>
-      </div>
+      </motion.div>
     </motion.div>
   );
 }

@@ -10,8 +10,10 @@ import {
   Mic,
   Keyboard,
   Volume2,
+  Sparkles,
 } from "lucide-react";
 import { MAJOR_MAP } from "@/lib/constants";
+import { useAlert } from "@/components/ui/AlertSystem";
 
 // Mappings for Dependent Fields
 const QUALIFICATION_MAP: Record<string, string[]> = {
@@ -87,6 +89,7 @@ declare global {
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const { showAlert } = useAlert();
 
   // Modes: 'selection' | 'manual' | 'voice'
   const [mode, setMode] = useState<"selection" | "manual" | "voice">(
@@ -497,43 +500,24 @@ export default function OnboardingPage() {
         return;
       }
 
-      // Add to list if unique
+      // Add to list
       const currentList = [...store.preferredCountries];
       if (!currentList.includes(newCountry)) {
         currentList.push(newCountry);
       }
+      // If multiple mentioned in one go, could split. For now simple.
       updateStore({ preferredCountries: currentList });
 
-      // Ask to add more
-      speak(`Added ${newCountry}. Do you want to add another country?`, () =>
-        startListening(),
+      // Removed "Add another" loop as requested. Proceed to Budget.
+      speak(
+        `Got it, ${newCountry}. Moving on. What is your approximate annual budget in USD?`,
+        () => startListening(),
       );
-      setVoiceStep(4.5); // 4.5 = Confirmation Loop
-      voiceStepRef.current = 4.5;
+      setVoiceStep(5);
+      voiceStepRef.current = 5;
     }
 
-    // --- STEP 4.5: ADD MORE CONFIRMATION ---
-    else if (currentStep === 4.5) {
-      if (
-        lower.includes("yes") ||
-        lower.includes("sure") ||
-        lower.includes("yeah") ||
-        lower.includes("one more") ||
-        lower.includes("add")
-      ) {
-        speak("Great, which one?", () => startListening());
-        setVoiceStep(4); // Loop back
-        voiceStepRef.current = 4;
-      } else {
-        // "No", "Nope", "Done"
-        speak(
-          `Understood. Moving on. What is your approximate annual budget in USD?`,
-          () => startListening(),
-        );
-        setVoiceStep(5);
-        voiceStepRef.current = 5;
-      }
-    }
+    // --- STEP 4.5 REMOVED ---
 
     // --- STEP 5: BUDGET ---
     else if (currentStep === 5) {
@@ -661,7 +645,7 @@ export default function OnboardingPage() {
       router.push("/dashboard");
     } catch (err) {
       console.error(err);
-      alert("Something went wrong. Please try again.");
+      showAlert("Something went wrong. Please try again.", "error");
     } finally {
       setLoading(false);
     }
@@ -676,26 +660,29 @@ export default function OnboardingPage() {
     // Validation Logic
     if (step === 1) {
       if (!data.targetDegree) {
-        alert("Please select your Target Degree.");
+        showAlert("Please select your Target Degree.", "error");
         return;
       }
       if (!data.citizenship) {
-        alert("Please select your Citizenship.");
+        showAlert("Please select your Citizenship.", "error");
         return;
       }
       if (!data.highestQualification) {
-        alert("Please select your Highest Qualification.");
+        showAlert("Please select your Highest Qualification.", "error");
         return;
       }
       if (!data.fieldOfStudy) {
-        alert("Please select your Field of Study.");
+        showAlert("Please select your Field of Study.", "error");
         return;
       }
     }
 
     if (step === 2) {
       if (!data.gpa || data.gpa.trim() === "") {
-        alert("Please enter your GPA/Percentage before continuing.");
+        showAlert(
+          "Please enter your GPA/Percentage before continuing.",
+          "error",
+        );
         return;
       }
       const gpaValue = parseFloat(data.gpa);
@@ -716,7 +703,7 @@ export default function OnboardingPage() {
         if (!res.ok) throw new Error("Failed to save profile");
         router.push("/dashboard");
       } catch (err) {
-        alert("Something went wrong.");
+        showAlert("Something went wrong.", "error");
       } finally {
         setLoading(false);
       }
@@ -731,33 +718,73 @@ export default function OnboardingPage() {
 
   if (mode === "selection") {
     return (
-      <div className="min-h-screen bg-navy-900 text-white flex items-center justify-center p-6">
-        <div className="w-full max-w-4xl text-center space-y-12">
-          <div>
-            <h1 className="text-4xl font-bold mb-4">Welcome to ScholrAI</h1>
-            <p className="text-xl text-gray-400">
-              How would you like to build your profile?
-            </p>
+      <div className="min-h-screen bg-navy-900 text-white flex items-center justify-center p-6 relative overflow-hidden">
+        {/* Background Elements */}
+        <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+          <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[100px]" />
+          <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[100px]" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[url('/grid.svg')] opacity-5" />
+        </div>
+
+        <div className="w-full max-w-5xl relative z-10">
+          <div className="text-center mb-16 space-y-4">
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-5xl md:text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white via-gray-200 to-gray-400 pb-2 leading-tight"
+            >
+              Begin Your Journey
+            </motion.h1>
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="text-xl text-gray-400 max-w-2xl mx-auto"
+            >
+              Choose how you want to build your scholar profile today.
+            </motion.p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8">
+          <div className="grid md:grid-cols-2 gap-8 px-4">
+            {/* Manual Card */}
             <motion.div
-              whileHover={{ scale: 1.05 }}
-              className="bg-navy-800 border border-white/10 p-10 rounded-3xl cursor-pointer hover:border-primary transition-all group"
+              initial={{ opacity: 0, x: -50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+              whileHover={{ scale: 1.03, y: -5 }}
+              className="group relative bg-navy-800/50 hover:bg-navy-800/80 backdrop-blur-xl border border-white/5 hover:border-blue-500/30 p-10 rounded-[2rem] cursor-pointer transition-all duration-300 shadow-2xl hover:shadow-blue-500/10 overflow-hidden"
               onClick={() => setMode("manual")}
             >
-              <div className="w-20 h-20 bg-navy-900 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-primary/20 transition-colors">
-                <Keyboard className="w-10 h-10 text-gray-400 group-hover:text-primary" />
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+              <div className="relative z-10 flex flex-col items-center text-center h-full">
+                <div className="w-24 h-24 bg-navy-900 rounded-2xl flex items-center justify-center mb-8 shadow-inner border border-white/5 group-hover:border-blue-500/20 group-hover:scale-110 transition-all duration-300">
+                  <Keyboard className="w-10 h-10 text-gray-500 group-hover:text-blue-400 transition-colors" />
+                </div>
+
+                <h2 className="text-3xl font-bold mb-3 text-white group-hover:text-blue-100 transition-colors">
+                  Classic Route
+                </h2>
+                <div className="h-1 w-12 bg-blue-500/30 rounded-full mb-6" />
+
+                <p className="text-gray-400 leading-relaxed mb-8">
+                  Fill out the comprehensive form at your own pace. Perfect if
+                  you have all your documents ready.
+                </p>
+
+                <div className="mt-auto flex items-center gap-2 text-sm font-bold text-blue-400 group-hover:translate-x-1 transition-transform">
+                  Start Manual Entry <ChevronRight className="w-4 h-4" />
+                </div>
               </div>
-              <h2 className="text-2xl font-bold mb-2">Manual Onboarding</h2>
-              <p className="text-gray-400">
-                Fill out the classic form at your own pace.
-              </p>
             </motion.div>
 
+            {/* Voice AI Card */}
             <motion.div
-              whileHover={{ scale: 1.05 }}
-              className="bg-navy-800 border border-white/10 p-10 rounded-3xl cursor-pointer hover:border-purple-500 transition-all group"
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
+              whileHover={{ scale: 1.03, y: -5 }}
+              className="group relative bg-navy-800/50 hover:bg-navy-800/80 backdrop-blur-xl border border-white/5 hover:border-purple-500/30 p-10 rounded-[2rem] cursor-pointer transition-all duration-300 shadow-2xl hover:shadow-purple-500/10 overflow-hidden"
               onClick={() => {
                 const hasSupport =
                   typeof window !== "undefined" &&
@@ -765,8 +792,9 @@ export default function OnboardingPage() {
                     "webkitSpeechRecognition" in window);
 
                 if (!hasSupport) {
-                  alert(
+                  showAlert(
                     "Your browser does not support Voice Recognition. Redirecting to Manual Mode.",
+                    "error",
                   );
                   setMode("manual");
                   return;
@@ -774,13 +802,31 @@ export default function OnboardingPage() {
                 setMode("voice");
               }}
             >
-              <div className="w-20 h-20 bg-navy-900 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-purple-500/20 transition-colors">
-                <Mic className="w-10 h-10 text-gray-400 group-hover:text-purple-400" />
+              <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+              {/* Floating elements for AI effect */}
+              <div className="absolute top-10 right-10 w-2 h-2 bg-purple-400 rounded-full animate-ping opacity-20" />
+              <div className="absolute bottom-10 left-10 w-3 h-3 bg-purple-500 rounded-full animate-pulse opacity-20" />
+
+              <div className="relative z-10 flex flex-col items-center text-center h-full">
+                <div className="w-24 h-24 bg-navy-900 rounded-2xl flex items-center justify-center mb-8 shadow-inner border border-white/5 group-hover:border-purple-500/20 group-hover:scale-110 transition-all duration-300">
+                  <Mic className="w-10 h-10 text-gray-500 group-hover:text-purple-400 transition-colors" />
+                </div>
+
+                <h2 className="text-3xl font-bold mb-3 text-white group-hover:text-purple-100 transition-colors">
+                  AI Experience
+                </h2>
+                <div className="h-1 w-12 bg-purple-500/30 rounded-full mb-6" />
+
+                <p className="text-gray-400 leading-relaxed mb-8">
+                  Have a natural conversation with our AI Counsellor. We'll
+                  build your profile while you chat.
+                </p>
+
+                <div className="mt-auto flex items-center gap-2 text-sm font-bold text-purple-400 group-hover:translate-x-1 transition-transform">
+                  Start Voice Chat <Sparkles className="w-3 h-3" />
+                </div>
               </div>
-              <h2 className="text-2xl font-bold mb-2">Voice Assistant</h2>
-              <p className="text-gray-400">
-                Chat with AI to build your profile interactively.
-              </p>
             </motion.div>
           </div>
         </div>

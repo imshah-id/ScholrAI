@@ -1,10 +1,21 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Send, Bot, User, Sparkles } from "lucide-react";
+import {
+  Send,
+  Bot,
+  User,
+  Sparkles,
+  Trash2,
+  GraduationCap,
+  FileText,
+  Banknote,
+  ShieldCheck,
+} from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { useAlert } from "@/components/ui/AlertSystem";
 
 type Message = {
   id: number;
@@ -13,22 +24,35 @@ type Message = {
 };
 
 export default function CounsellorPage() {
+  const { showAlert } = useAlert();
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 1,
-      role: "ai",
-      content:
-        "Hello! I'm your AI Counsellor. I've analyzed your profile. How can I help you refine your university list or applications today?",
-    },
-  ]);
-
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  // Load initial state from localStorage if available
+  const [messages, setMessages] = useState<Message[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("scholrai_chat_history");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {
+          console.error("Failed to parse chat history");
+        }
+      }
     }
+    return [
+      {
+        id: 1,
+        role: "ai",
+        content:
+          "Hello! I'm your AI Counsellor. I've analyzed your profile. How can I help you refine your university list or applications today?",
+      },
+    ];
+  });
+
+  // Persist messages whenever they change
+  useEffect(() => {
+    localStorage.setItem("scholrai_chat_history", JSON.stringify(messages));
   }, [messages]);
 
   const handleSend = async () => {
@@ -36,12 +60,13 @@ export default function CounsellorPage() {
 
     const userText = input;
     const userMsg: Message = {
-      id: messages.length + 1,
+      id: Date.now(), // Use timestamp for unique ID
       role: "user",
       content: userText,
     };
 
-    setMessages((prev) => [...prev, userMsg]);
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
     setInput("");
     setLoading(true);
 
@@ -66,7 +91,7 @@ export default function CounsellorPage() {
       if (res.ok) {
         const data = await res.json();
         const aiMsg: Message = {
-          id: messages.length + 2,
+          id: Date.now() + 1,
           role: "ai",
           content: data.reply,
         };
@@ -74,7 +99,7 @@ export default function CounsellorPage() {
       } else {
         // Fallback error
         const errorMsg: Message = {
-          id: messages.length + 2,
+          id: Date.now() + 1,
           role: "ai",
           content:
             "I'm having trouble connecting to the server. Please try again.",
@@ -104,9 +129,30 @@ export default function CounsellorPage() {
             </div>
           </div>
         </div>
-        <button className="text-xs bg-primary/10 text-primary px-3 py-1 rounded-full border border-primary/20 flex items-center gap-1">
-          <Sparkles className="w-3 h-3" /> Gemini Pro
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              if (confirm("Clear chat history?")) {
+                setMessages([
+                  {
+                    id: 1,
+                    role: "ai",
+                    content:
+                      "Hello! I'm your AI Counsellor. I've analyzed your profile. How can I help you refine your university list or applications today?",
+                  },
+                ]);
+                localStorage.removeItem("scholrai_chat_history");
+              }
+            }}
+            className="text-gray-400 hover:text-white p-2 hover:bg-white/5 rounded-lg transition-colors"
+            title="Clear History"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+          <button className="text-xs bg-primary/10 text-primary px-3 py-1 rounded-full border border-primary/20 flex items-center gap-1">
+            <Sparkles className="w-3 h-3" /> Gemini Pro
+          </button>
+        </div>
       </div>
 
       {/* Chat Area */}
@@ -270,9 +316,16 @@ export default function CounsellorPage() {
                                     name: match[1],
                                   }),
                                 }).then((res) => {
-                                  if (res.ok) alert(`Shortlisted ${match[1]}!`);
+                                  if (res.ok)
+                                    showAlert(
+                                      `Shortlisted ${match[1]}!`,
+                                      "success",
+                                    );
                                   else
-                                    alert("Could not find university details.");
+                                    showAlert(
+                                      "Could not find university details.",
+                                      "error",
+                                    );
                                 });
                               }}
                               className="bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 text-xs font-bold px-3 py-2 rounded-lg border border-teal-500/30 flex items-center gap-2 transition-colors"
@@ -312,7 +365,56 @@ export default function CounsellorPage() {
       </div>
 
       {/* Input Area */}
-      <div className="p-4 bg-navy-900/50 border-t border-white/10">
+      <div className="p-4 bg-navy-900/50 border-t border-white/10 space-y-3">
+        {/* Suggested Prompts - Only show if no user messages yet */}
+        {!messages.some((m) => m.role === "user") && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 px-1">
+            {[
+              {
+                label: "Analyze my profile",
+                icon: ShieldCheck,
+                text: "Analyze my profile strength and suggest improvements",
+              },
+              {
+                label: "Safe Universities",
+                icon: GraduationCap,
+                text: "Suggest safe universities based on my GPA",
+              },
+              {
+                label: "Scholarships",
+                icon: Banknote,
+                text: "What scholarship options are available for me?",
+              },
+              {
+                label: "Draft SOP",
+                icon: FileText,
+                text: "Help me draft a Statement of Purpose for Computer Science",
+              },
+            ].map((prompt, i) => (
+              <motion.button
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.1 }}
+                key={prompt.label}
+                onClick={() => {
+                  setInput(prompt.text);
+                  // Optional: auto-send could be implemented here
+                }}
+                className="flex flex-col gap-2 items-start bg-navy-800/80 hover:bg-navy-700 hover:scale-105 active:scale-95 border border-white/10 hover:border-teal-500/30 p-3 rounded-xl transition-all w-full group text-left"
+              >
+                <div className="p-2 rounded-lg bg-teal-500/10 text-teal-400 group-hover:bg-teal-500/20 group-hover:text-teal-300 transition-colors">
+                  <prompt.icon className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-sm font-bold text-gray-200 group-hover:text-white block">
+                    {prompt.label}
+                  </span>
+                </div>
+              </motion.button>
+            ))}
+          </div>
+        )}
+
         <div className="relative">
           <input
             type="text"

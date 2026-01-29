@@ -31,11 +31,23 @@ export default function UniversityDetailsPage() {
   }, [id]);
 
   const fetchDetails = async () => {
+    const cacheKey = `scholrai_uni_details_${id}`;
+    const cached = sessionStorage.getItem(cacheKey);
+
+    if (cached) {
+      try {
+        setUni(JSON.parse(cached));
+        setLoading(false);
+        return;
+      } catch (e) {}
+    }
+
     try {
       const res = await fetch(`/api/universities/${id}`);
       if (res.ok) {
         const data = await res.json();
         setUni(data);
+        sessionStorage.setItem(cacheKey, JSON.stringify(data));
       }
     } catch (e) {
       console.error(e);
@@ -45,24 +57,36 @@ export default function UniversityDetailsPage() {
   };
 
   const checkShortlist = async () => {
-    // Optimization: In a real app we might check specific ID or load all shortlist IDs once
-    // For now reusing the list endpoint or checking if we store it.
-    // Actually, let's just assume we can fetch the user's shortlist status from updated API or list
-    // For simplicity MVP, we'll fetch list and find.
-    // Ideally we update the Detail API to include "isShortlisted" boolean.
-    // Let's stick to the current "fetch all ids" pattern used in list view for consistency.
+    // CACHE CHECK: Use global shortlist cache if available
+    const cachedShortlist = sessionStorage.getItem("scholrai_shortlist_ids");
+    if (cachedShortlist) {
+      try {
+        const ids = JSON.parse(cachedShortlist);
+        if (ids.includes(id)) {
+          setShortlisted(true);
+          return; // Assume cache is reliable enough for initial render
+        }
+      } catch (e) {}
+    }
+
     try {
       const res = await fetch("/api/shortlist");
       if (res.ok) {
         const data = await res.json();
         const exists = data.some((item: any) => item.universityId === id);
         setShortlisted(exists);
+
+        // Update/Create cache
+        const allIds = data.map((item: any) => item.universityId);
+        sessionStorage.setItem(
+          "scholrai_shortlist_ids",
+          JSON.stringify(allIds),
+        );
       }
     } catch (e) {}
   };
 
   const handleShortlist = async () => {
-    // Toggle logic if we supported remove, but currently only add
     if (shortlisted) return;
 
     try {
@@ -73,6 +97,19 @@ export default function UniversityDetailsPage() {
       });
       if (res.ok) {
         setShortlisted(true);
+
+        // Update Cache
+        const cached = sessionStorage.getItem("scholrai_shortlist_ids");
+        if (cached) {
+          try {
+            const ids = JSON.parse(cached);
+            const newIds = [...ids, id];
+            sessionStorage.setItem(
+              "scholrai_shortlist_ids",
+              JSON.stringify(newIds),
+            );
+          } catch (e) {}
+        }
       }
     } catch (e) {
       console.error(e);
@@ -186,14 +223,20 @@ export default function UniversityDetailsPage() {
       </motion.div>
 
       {/* Main Content Grid (Symmetric) */}
-      <div className="grid md:grid-cols-2 gap-8">
+      <motion.div
+        variants={containerStagger}
+        initial="hidden"
+        animate="visible"
+        className="grid md:grid-cols-2 gap-8"
+      >
         {/* LEFT COLUMN: The "Fit" & Academics */}
-        <div className="space-y-6">
+        <motion.div
+          variants={slideUp}
+          className="space-y-6 flex flex-col h-full"
+        >
           {/* AI Match Card */}
           <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
+            variants={slideInLeft}
             className="glass p-8 rounded-3xl border border-white/5 bg-gradient-to-br from-purple-900/20 to-navy-900/50 overflow-hidden relative"
           >
             {/* Decorative Glow */}
@@ -262,22 +305,23 @@ export default function UniversityDetailsPage() {
 
           {/* Academic Programs (Mock) */}
           <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
-            className="glass p-8 rounded-3xl border border-white/5 space-y-6"
+            variants={slideInLeft}
+            className="glass p-8 rounded-3xl border border-white/5 space-y-6 flex-1 flex flex-col"
           >
-            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-teal-400" /> Academic Strengths
-            </h2>
+            <div>
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-teal-400" /> Academic
+                Strengths
+              </h2>
 
-            <p className="text-gray-400 leading-relaxed text-sm">
-              Known for consistent research output and industry connections.{" "}
-              {uni.name} is particularly renowned for its engineering and
-              sciences faculities.
-            </p>
+              <p className="text-gray-400 leading-relaxed text-sm mt-4">
+                Known for consistent research output and industry connections.{" "}
+                {uni.name} is particularly renowned for its engineering and
+                sciences faculities.
+              </p>
+            </div>
 
-            <div className="space-y-4">
+            <div className="space-y-4 mt-auto">
               <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider">
                 Popular Majors
               </h3>
@@ -288,25 +332,30 @@ export default function UniversityDetailsPage() {
                   "Business Analytics",
                   "Psychology",
                 ].map((major) => (
-                  <span
+                  <motion.span
+                    whileHover={{
+                      scale: 1.05,
+                      backgroundColor: "rgba(255,255,255,0.1)",
+                    }}
                     key={major}
                     className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/5 text-sm text-gray-300 hover:text-white transition-colors cursor-default"
                   >
                     {major}
-                  </span>
+                  </motion.span>
                 ))}
               </div>
             </div>
           </motion.div>
-        </div>
+        </motion.div>
 
         {/* RIGHT COLUMN: Logistics & Stats */}
-        <div className="space-y-6">
+        <motion.div
+          variants={slideUp}
+          className="space-y-6 flex flex-col h-full"
+        >
           {/* Admissions Card */}
           <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.15 }}
+            variants={slideInRight}
             className="glass p-8 rounded-3xl border border-white/5 space-y-6"
           >
             <h2 className="text-xl font-bold text-white flex items-center gap-2">
@@ -354,10 +403,8 @@ export default function UniversityDetailsPage() {
 
           {/* Financials Card */}
           <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.25 }}
-            className="glass p-8 rounded-3xl border border-white/5 space-y-6"
+            variants={slideInRight}
+            className="glass p-8 rounded-3xl border border-white/5 space-y-6 flex-1 flex flex-col justify-between"
           >
             <h2 className="text-xl font-bold text-white flex items-center gap-2">
               <DollarSign className="w-5 h-5 text-green-400" /> Costs & Aid
@@ -397,8 +444,8 @@ export default function UniversityDetailsPage() {
               </div>
             </div>
           </motion.div>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </div>
   );
 }

@@ -21,8 +21,10 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useAlert } from "@/components/ui/AlertSystem";
 
 export default function GuidancePage() {
+  const { showAlert } = useAlert();
   const [tasks, setTasks] = useState<any[]>([]);
   const [university, setUniversity] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -63,6 +65,18 @@ export default function GuidancePage() {
   }, [university]);
 
   const fetchTips = async () => {
+    if (!university?.name) return;
+
+    // CACHE CHECK
+    const cacheKey = `scholrai_tips_${university.name}`;
+    const cachedTips = sessionStorage.getItem(cacheKey);
+    if (cachedTips) {
+      try {
+        setTips(JSON.parse(cachedTips));
+        return;
+      } catch (e) {}
+    }
+
     setTipsLoading(true);
     try {
       const res = await fetch("/api/chat", {
@@ -80,6 +94,7 @@ export default function GuidancePage() {
           .filter((line: string) => line.trim().length > 10)
           .slice(0, 3);
         setTips(cleanTips);
+        sessionStorage.setItem(cacheKey, JSON.stringify(cleanTips));
       }
     } catch (e) {
       console.error(e);
@@ -89,12 +104,25 @@ export default function GuidancePage() {
   };
 
   const fetchGuidance = async () => {
+    // CACHE CHECK
+    const cachedTasks = sessionStorage.getItem("scholrai_guidance_tasks");
+    if (cachedTasks) {
+      try {
+        const parsed = JSON.parse(cachedTasks);
+        setTasks(parsed.tasks);
+        setUniversity(parsed.university);
+        setLoading(false);
+        // Could revalidate loosely
+      } catch (e) {}
+    }
+
     try {
       const res = await fetch("/api/guidance");
       if (res.ok) {
         const data = await res.json();
         setTasks(data.tasks);
         setUniversity(data.university);
+        sessionStorage.setItem("scholrai_guidance_tasks", JSON.stringify(data));
       }
     } catch (e) {
       console.error(e);
@@ -139,6 +167,18 @@ export default function GuidancePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ taskId: id, status: newStatus }),
       });
+
+      // Update Cache
+      const updatedTasks = tasks.map((t) =>
+        t.id === id ? { ...t, status: newStatus } : t,
+      );
+      sessionStorage.setItem(
+        "scholrai_guidance_tasks",
+        JSON.stringify({
+          tasks: updatedTasks,
+          university: university,
+        }),
+      );
     } catch (e) {
       console.error("Failed to update task");
       // Revert on failure
@@ -207,13 +247,13 @@ export default function GuidancePage() {
     if (!files || files.length === 0) return;
 
     if (documents.length >= 5) {
-      alert("You can only upload up to 5 documents.");
+      showAlert("You can only upload up to 5 documents.", "error");
       return;
     }
 
     const file = files[0];
     if (file.type !== "application/pdf") {
-      alert("Only PDF files are allowed.");
+      showAlert("Only PDF files are allowed.", "error");
       return;
     }
 

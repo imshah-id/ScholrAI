@@ -45,11 +45,26 @@ export default function DiscoveryPage() {
   }, []);
 
   const fetchUniversities = async () => {
+    // Check Cache
+    const cached = sessionStorage.getItem("scholrai_uni_recommendations");
+    if (cached) {
+      try {
+        setUniversities(JSON.parse(cached));
+        setLoading(false);
+        // Optional: Background revalidation could go here
+        return;
+      } catch (e) {}
+    }
+
     try {
       const res = await fetch("/api/universities");
       if (res.ok) {
         const data = await res.json();
         setUniversities(data);
+        sessionStorage.setItem(
+          "scholrai_uni_recommendations",
+          JSON.stringify(data),
+        );
       }
     } catch (error) {
       console.error("Failed to fetch universities", error);

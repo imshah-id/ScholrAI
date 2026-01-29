@@ -31,7 +31,10 @@ const item = {
   show: { opacity: 1, y: 0 },
 };
 
+import { useAlert } from "@/components/ui/AlertSystem";
+
 export default function ProfilePage() {
+  const { showAlert } = useAlert();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -52,6 +55,23 @@ export default function ProfilePage() {
 
   useEffect(() => {
     async function fetchUserAndDocs() {
+      // CACHE CHECK: Try to load from sessionStorage first
+      const cachedProfile = sessionStorage.getItem("scholrai_profile_data");
+      const cachedDocs = sessionStorage.getItem("scholrai_profile_docs");
+
+      if (cachedProfile) {
+        try {
+          setUser(JSON.parse(cachedProfile));
+          setLoading(false); // Immediate render
+        } catch (e) {}
+      }
+
+      if (cachedDocs) {
+        try {
+          setDocuments(JSON.parse(cachedDocs));
+        } catch (e) {}
+      }
+
       try {
         const [userRes, docRes] = await Promise.all([
           fetch("/api/user/me"),
@@ -69,7 +89,7 @@ export default function ProfilePage() {
               : [];
           }
 
-          setUser({
+          const processedUser = {
             ...data,
             name: data.fullName,
             degree: data.targetDegree,
@@ -77,11 +97,22 @@ export default function ProfilePage() {
             citizenship: data.citizenship,
             countries: countries,
             strength: data.profileStrength || 0, // from API
-          });
+          };
+
+          setUser(processedUser);
+          sessionStorage.setItem(
+            "scholrai_profile_data",
+            JSON.stringify(processedUser),
+          );
         }
 
         if (docRes.ok) {
-          setDocuments(await docRes.json());
+          const docsData = await docRes.json();
+          setDocuments(docsData);
+          sessionStorage.setItem(
+            "scholrai_profile_docs",
+            JSON.stringify(docsData),
+          );
         }
       } catch (e) {
         console.error("Failed to load data", e);
@@ -101,7 +132,7 @@ export default function ProfilePage() {
 
     // Client-side Validation
     if (file.size > 4 * 1024 * 1024) {
-      alert("File too large (Max 4MB)");
+      showAlert("File too large (Max 4MB)", "error");
       return;
     }
 
@@ -122,11 +153,11 @@ export default function ProfilePage() {
         setTimeout(() => setShowSuccess(false), 3000);
       } else {
         const err = await res.json();
-        alert(err.error || "Upload failed");
+        showAlert(err.error || "Upload failed", "error");
       }
     } catch (err) {
       console.error(err);
-      alert("Upload failed");
+      showAlert("Upload failed", "error");
     } finally {
       setUploading(false);
     }

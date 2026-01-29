@@ -13,6 +13,8 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+import { AlertProvider } from "@/components/ui/AlertSystem";
+
 export const metadata: Metadata = {
   title: "ScholrAI - Navigate Your Global Education Path",
   description:
@@ -29,8 +31,10 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
-        {children}
-        <Toaster position="top-center" richColors closeButton />
+        <AlertProvider>
+          {children}
+          <Toaster position="top-center" richColors closeButton />
+        </AlertProvider>
       </body>
     </html>
   );

@@ -131,9 +131,9 @@ export async function GET() {
       calculatedStage = "SHORTLIST";
     }
 
-    // Update DB if different (self-healing)
+    // Update DB if different (self-healing) - Fire and forget (don't await)
     if (user.profile && user.profile.currentStage !== calculatedStage) {
-      await prisma.profile
+      prisma.profile
         .update({
           where: { userId },
           data: { currentStage: calculatedStage },
