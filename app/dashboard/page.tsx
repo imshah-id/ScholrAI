@@ -444,7 +444,7 @@ export default function DashboardPage() {
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
               <Calendar className="w-5 h-5 text-red-400" /> Upcoming Deadlines
             </h3>
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[275px] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               {deadlines.map((item, i) => (
                 <motion.div
                   initial={{ opacity: 0, x: 20 }}

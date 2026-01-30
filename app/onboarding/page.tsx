@@ -1083,14 +1083,14 @@ export default function OnboardingPage() {
                       </span>
                     </div>
                     <span className="text-sm font-medium text-white/40">
-                      Step {Math.floor(voiceStep) || 1} of 7
+                      Step {Math.min(Math.floor(voiceStep) || 1, 6)} of 6
                     </span>
                   </div>
                   <div className="h-1 bg-white/5 rounded-full overflow-hidden w-full">
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{
-                        width: `${(Math.floor(voiceStep) / 7) * 100}%`,
+                        width: `${(Math.min(Math.floor(voiceStep), 6) / 6) * 100}%`,
                       }}
                       className="h-full bg-gradient-to-r from-purple-500 to-blue-500"
                     />

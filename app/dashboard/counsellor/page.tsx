@@ -23,6 +23,8 @@ import {
   FileEdit,
   X,
   Plus,
+  Mic,
+  MicOff,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
@@ -39,6 +41,48 @@ type Message = {
 export default function CounsellorPage() {
   const { showAlert } = useAlert();
   const [input, setInput] = useState("");
+  const [isListening, setIsListening] = useState(false);
+
+  const toggleListening = () => {
+    if (isListening) {
+      window.speechSynthesis.cancel();
+      setIsListening(false);
+      return;
+    }
+
+    if (!("webkitSpeechRecognition" in window)) {
+      showAlert("Voice input not supported in this browser.", "error");
+      return;
+    }
+
+    const SpeechRecognition = (window as any).webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = "en-US";
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setInput(transcript);
+      setTimeout(() => handleSend(), 500); // Auto-send
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error(event.error);
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.start();
+  };
+
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -608,6 +652,21 @@ export default function CounsellorPage() {
             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">
               <MessageSquare className="w-5 h-5" />
             </div>
+            <button
+              onClick={toggleListening}
+              className={`absolute right-14 top-1/2 -translate-y-1/2 p-2 rounded-xl transition-all ${
+                isListening
+                  ? "bg-red-500/20 text-red-400 animate-pulse"
+                  : "hover:bg-white/10 text-gray-400 hover:text-white"
+              }`}
+              title="Voice Input"
+            >
+              {isListening ? (
+                <MicOff className="w-5 h-5" />
+              ) : (
+                <Mic className="w-5 h-5" />
+              )}
+            </button>
             <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
               <button
                 onClick={handleSend}

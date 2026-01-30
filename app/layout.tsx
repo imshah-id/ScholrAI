@@ -12,13 +12,10 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+import { MotionProvider } from "@/components/providers/MotionProvider";
 import { AlertProvider } from "@/components/ui/AlertSystem";
 
-export const metadata: Metadata = {
-  title: "ScholrAI | AI-Powered Study Abroad Counselor",
-  description:
-    "The world's first AI platform optimized for global university admissions. Analyze your profile, shortlist universities, and draft essays with precision.",
-};
+// ...
 
 export default function RootLayout({
   children,
@@ -31,7 +28,9 @@ export default function RootLayout({
         suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
-        <AlertProvider>{children}</AlertProvider>
+        <MotionProvider>
+          <AlertProvider>{children}</AlertProvider>
+        </MotionProvider>
       </body>
     </html>
   );
