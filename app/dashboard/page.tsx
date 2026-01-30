@@ -253,11 +253,25 @@ export default function DashboardPage() {
       {/* Header */}
       <motion.div variants={slideUp} className="flex justify-between items-end">
         <div>
-          <h1 className="text-3xl font-bold">Good Evening, {userName}</h1>
-          <p className="text-gray-400">
-            You are currently in{" "}
-            <span className="text-primary font-bold">Stage 2: {stage}</span>.
-          </p>
+          <h1 className="text-3xl font-bold mb-2">Good Evening, {userName}</h1>
+          <div
+            className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border transition-colors ${
+              stage === "Submitted" || stage === "Finalized"
+                ? "bg-green-500/10 text-green-400 border-green-500/20"
+                : "bg-blue-500/10 text-blue-400 border-blue-500/20"
+            }`}
+          >
+            <span
+              className={`w-2 h-2 rounded-full ${
+                stage === "Submitted" || stage === "Finalized"
+                  ? "bg-green-400"
+                  : "bg-blue-400 animate-pulse"
+              }`}
+            />
+            {stage === "Submitted" || stage === "Finalized"
+              ? "Application Finalized"
+              : `You are currently in Stage 2: ${stage}`}
+          </div>
         </div>
         <Link href="/dashboard/counsellor" className="hidden md:block">
           <motion.button

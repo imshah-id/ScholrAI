@@ -348,6 +348,21 @@ export default function GuidancePage() {
             </span>
             .
           </p>
+
+          <div
+            className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mt-3 border transition-colors ${
+              hasSubmitted
+                ? "bg-green-500/10 text-green-400 border-green-500/20"
+                : "bg-blue-500/10 text-blue-400 border-blue-500/20"
+            }`}
+          >
+            <span
+              className={`w-2 h-2 rounded-full ${hasSubmitted ? "bg-green-400" : "bg-blue-400 animate-pulse"}`}
+            />
+            {hasSubmitted
+              ? "Application Finalized"
+              : "You are currently in Stage 2: GUIDANCE"}
+          </div>
         </div>
 
         {/* Progress Bar Widget */}
@@ -420,21 +435,23 @@ export default function GuidancePage() {
           {/* Smart Modules Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-white/5">
             {/* Interview Prep Module */}
-            <div className="glass p-5 rounded-xl border border-white/5 bg-gradient-to-br from-purple-500/10 to-transparent hover:border-purple-500/30 transition-all group">
-              <div className="flex justify-between items-start mb-4">
-                <div className="p-2 bg-purple-500/20 rounded-lg text-purple-400">
-                  <MessageSquare className="w-5 h-5" />
+            <div className="glass p-5 rounded-xl border border-white/5 bg-gradient-to-br from-purple-500/10 to-transparent hover:border-purple-500/30 transition-all group flex flex-col h-full justify-between">
+              <div>
+                <div className="flex justify-between items-start mb-4">
+                  <div className="p-2 bg-purple-500/20 rounded-lg text-purple-400">
+                    <MessageSquare className="w-5 h-5" />
+                  </div>
+                  <span className="text-xs font-bold text-purple-400 uppercase tracking-wider bg-purple-500/10 px-2 py-1 rounded">
+                    New
+                  </span>
                 </div>
-                <span className="text-xs font-bold text-purple-400 uppercase tracking-wider bg-purple-500/10 px-2 py-1 rounded">
-                  New
-                </span>
+                <h3 className="text-lg font-bold text-white mb-1">
+                  Mock Interview
+                </h3>
+                <p className="text-sm text-gray-400 mb-4">
+                  Practice university-specific questions with AI feedback.
+                </p>
               </div>
-              <h3 className="text-lg font-bold text-white mb-1">
-                Mock Interview
-              </h3>
-              <p className="text-sm text-gray-400 mb-4">
-                Practice university-specific questions with AI feedback.
-              </p>
               <button
                 onClick={() => setShowInterviewModal(true)}
                 className="w-full py-2 rounded-lg bg-purple-500 text-white font-bold text-sm hover:bg-purple-600 shadow-lg shadow-purple-500/20 transition-all flex items-center justify-center gap-2"

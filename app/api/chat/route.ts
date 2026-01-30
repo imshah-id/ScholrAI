@@ -1,9 +1,5 @@
 import { NextResponse } from "next/server";
-import {
-  GoogleGenerativeAI,
-  SchemaType,
-  type Tool,
-} from "@google/generative-ai";
+import { HfInference } from "@huggingface/inference";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
@@ -16,56 +12,38 @@ You are the ScholrAI Counsellor.
 Your goal is to help students with study abroad plans.
 You have access to tools to help the student directly.
 
-GUIDELINES:
-- If the user asks to shortlist a university ("Add Stanford", "I like MIT"), USE THE TOOL \`add_to_shortlist\`.
-- If the tool succeeds, confirm it to the user naturally ("I've added Stanford to your shortlist.").
-- If the tool fails or university isn't found, apologize.
-- Don't simply say you *will* do it, actually CALL THE FUNCTION.
-`;
+TOOL USAGE FORMAT:
+To use a tool, you MUST output a valid JSON object in the following format and NOTHING else:
+{
+  "tool": "tool_name",
+  "args": {
+    "key": "value"
+  }
+}
 
-// Tool Definitions
-const tools: Tool[] = [
-  {
-    functionDeclarations: [
-      {
-        name: "add_to_shortlist",
-        description:
-          "Adds a university to the user's shortlist. Use this when the user explicitly wants to save/shortlist a university.",
-        parameters: {
-          type: SchemaType.OBJECT,
-          properties: {
-            universityName: {
-              type: SchemaType.STRING,
-              description:
-                "The name of the university to add (e.g. 'Harvard University', 'Stanford')",
-            },
-          },
-          required: ["universityName"],
-        },
-      },
-      {
-        name: "lock_university",
-        description:
-          "Locks a university as the final target. Triggers SOP/Essay tasks generation. Use ONLY when user is certain.",
-        parameters: {
-          type: SchemaType.OBJECT,
-          properties: {
-            universityName: {
-              type: SchemaType.STRING,
-              description: "The name of the university to lock",
-            },
-          },
-          required: ["universityName"],
-        },
-      },
-    ],
-  },
-];
+AVAILABLE TOOLS:
+- Tool Name: "add_to_shortlist"
+  - Description: Adds a university to the user's shortlist. Use when user says "Add [University]" or "I like [University]".
+  - Args: "universityName" (string)
+
+- Tool Name: "lock_university"
+  - Description: Locking a university triggers advanced tasks. Use ONLY if user explicitly wants to "Lock" or "Finalize".
+  - Args: "universityName" (string)
+
+GUIDELINES:
+- If NO tool is needed, simply reply with a helpful text response.
+- Do NOT output the tool JSON if you are just chatting.
+- If the tool succeeds, subsequent messages will inform you.
+`;
 
 export async function POST(req: Request) {
   try {
-    if (!process.env.GEMINI_API_KEY) {
-      return NextResponse.json({ error: "Missing API Key" }, { status: 500 });
+    if (!process.env.HUGGINGFACE_API_KEY) {
+      console.error("Missing HUGGINGFACE_API_KEY");
+      return NextResponse.json(
+        { error: "Configuration Error" },
+        { status: 500 },
+      );
     }
 
     const session = await getSession();
@@ -89,31 +67,20 @@ export async function POST(req: Request) {
     const lockedUni = shortlist.find((s) => s.isLocked);
     const shortlistNames = shortlist.map((s) => s.university.name).join(", ");
 
-    // Setup Model
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel(
-      {
-        model: "gemini-2.5-flash", // Stable version with robust tool support
-        tools: tools,
-      },
-      { apiVersion: "v1beta" },
-    );
+    const hf = new HfInference(process.env.HUGGINGFACE_API_KEY);
 
-    // Construct History
-    // Filter to ensure history starts with user and alternates turns
-    let textHistory = messages
+    // Construct History for Qwen
+    // HF Inference often prefers a simple array of { role, content }
+    // We filter valid roles.
+    let chatHistory = messages
       .filter(
-        (m: any) => m.role === "user" || m.role === "model" || m.role === "ai",
+        (m: any) =>
+          m.role === "user" || m.role === "assistant" || m.role === "system",
       )
       .map((m: any) => ({
-        role: m.role === "ai" ? "model" : "user",
-        parts: [{ text: m.content }],
+        role: m.role,
+        content: m.content,
       }));
-
-    // CRITICAL: Gemini history MUST start with 'user' role
-    if (textHistory.length > 0 && textHistory[0].role === "model") {
-      textHistory = textHistory.slice(1);
-    }
 
     const contextString = `
       USER CONTEXT:
@@ -125,71 +92,71 @@ export async function POST(req: Request) {
       - Locked University: ${lockedUni?.university.name || "None"}
     `;
 
-    const chat = model.startChat({
-      history: textHistory,
-      systemInstruction: {
-        role: "system",
-        parts: [{ text: SYSTEM_INSTRUCTION + contextString }],
-      },
+    // Append context to the last user message or system prompt
+    // For simplicity, we prepend a system message with instructions + context
+    const fullMessages = [
+      { role: "system", content: SYSTEM_INSTRUCTION + contextString },
+      ...chatHistory,
+      { role: "user", content: message },
+    ];
+
+    console.log("Using model: Qwen/Qwen2.5-72B-Instruct (or 7B fallback)");
+
+    const response = await hf.chatCompletion({
+      model: "Qwen/Qwen2.5-72B-Instruct", // Trying a strong model, can fallback to 7B if needed
+      messages: fullMessages,
+      max_tokens: 500,
+      temperature: 0.7,
     });
 
-    console.log("Sending chat message with tools enabled...");
-    const result = await chat.sendMessage(message);
-    const response = await result.response;
+    const replyText = response.choices[0].message.content || "";
 
-    // Check for Function Calls
-    const calls = response.functionCalls();
+    // Parse for JSON Tool Call
+    // Look for JSON pattern: { "tool": ... }
+    const jsonMatch = replyText.match(/\{[\s\S]*"tool"[\s\S]*\}/);
 
-    if (calls && calls.length > 0) {
-      const call = calls[0];
-      console.log("Tool Call Triggered:", call.name, call.args);
+    if (jsonMatch) {
+      try {
+        const toolCall = JSON.parse(jsonMatch[0]);
+        console.log("Tool Call Triggered:", toolCall.tool, toolCall.args);
 
-      // Execute Tool
-      let toolResultText = "";
+        let toolResultText = "";
 
-      if (call.name === "add_to_shortlist") {
-        const uniName = (call.args as any).universityName;
-        try {
+        if (toolCall.tool === "add_to_shortlist") {
+          const uniName = toolCall.args.universityName;
           const res = await addToShortlist(session.userId, uniName);
           if (res.status === "success") {
             toolResultText = `Successfully added ${res.university.name} to the shortlist.`;
           } else {
             toolResultText = `${res.university.name} is already in the shortlist.`;
           }
-        } catch (e: any) {
-          toolResultText = `Error adding university: ${e.message}`;
+        } else if (toolCall.tool === "lock_university") {
+          const uniName = toolCall.args.universityName;
+          await addToShortlist(session.userId, uniName);
+          toolResultText = `I have shortlisted ${uniName} for you. Locking is a safety feature best done in the Shortlist tab.`;
         }
-      } else if (call.name === "lock_university") {
-        // Minimal implementation for now - reusing matching logic if possible or update directly
-        // For hackathon P0, just shortlist first then lock
-        toolResultText =
-          "Locking is a two-step process provided in the UI for safety. I have shortlisted it for you instead.";
-        const uniName = (call.args as any).universityName;
-        await addToShortlist(session.userId, uniName);
+
+        // Return a follow-up response acknowledging the action
+        // In a full loop we might feed this back, but for single-turn statelessness:
+        return NextResponse.json({
+          reply:
+            replyText.replace(jsonMatch[0], "").trim() +
+            "\n\n" +
+            `[System: ${toolResultText}]`,
+        });
+      } catch (e) {
+        console.error("JSON Parse Error or Tool Error", e);
+        // If parsing fails, just return the text
+        return NextResponse.json({ reply: replyText });
       }
-
-      // Send Tool Result back to model to get final natural language response
-      const resultParts = [
-        {
-          functionResponse: {
-            name: call.name,
-            response: { result: toolResultText },
-          },
-        },
-      ];
-
-      const finalResult = await chat.sendMessage(resultParts);
-      const finalResponse = await finalResult.response;
-      return NextResponse.json({ reply: finalResponse.text() });
     }
 
-    return NextResponse.json({ reply: response.text() });
+    return NextResponse.json({ reply: replyText });
   } catch (error: any) {
     console.error("Chat Error:", error);
-    // Fallback to simpler model if tools fail or model not found
     return NextResponse.json({
       reply:
-        "I encountered an error processing that request. Please try again briefly.",
+        "I am having trouble connecting to my new brain (Hugging Face). Please check the API Key.",
     });
   }
 }
