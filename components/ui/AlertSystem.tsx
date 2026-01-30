@@ -6,14 +6,20 @@ import { X, CheckCircle2, AlertCircle, Info } from "lucide-react";
 
 type AlertType = "success" | "error" | "info";
 
+type AlertAction = {
+  label: string;
+  onClick: () => void;
+};
+
 interface Alert {
   id: string;
   message: string;
   type: AlertType;
+  action?: AlertAction;
 }
 
 interface AlertContextType {
-  showAlert: (message: string, type?: AlertType) => void;
+  showAlert: (message: string, type?: AlertType, action?: AlertAction) => void;
 }
 
 const AlertContext = createContext<AlertContextType | undefined>(undefined);
@@ -29,9 +35,13 @@ export const useAlert = () => {
 export const AlertProvider = ({ children }: { children: React.ReactNode }) => {
   const [alerts, setAlerts] = useState<Alert[]>([]);
 
-  const showAlert = (message: string, type: AlertType = "info") => {
+  const showAlert = (
+    message: string,
+    type: AlertType = "info",
+    action?: AlertAction,
+  ) => {
     const id = Math.random().toString(36).substr(2, 9);
-    setAlerts((prev) => [...prev, { id, message, type }]);
+    setAlerts((prev) => [...prev, { id, message, type, action }]);
 
     // Auto dismiss
     setTimeout(() => {
@@ -131,11 +141,29 @@ export const AlertProvider = ({ children }: { children: React.ReactNode }) => {
                   <p className="text-sm text-gray-300 font-medium leading-relaxed">
                     {alert.message}
                   </p>
+
+                  {alert.action && (
+                    <button
+                      onClick={() => {
+                        alert.action?.onClick();
+                        removeAlert(alert.id);
+                      }}
+                      className={`mt-2 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1
+                        ${
+                          alert.type === "success"
+                            ? "bg-green-500/20 text-green-400 hover:bg-green-500/30"
+                            : "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
+                        }
+                      `}
+                    >
+                      {alert.action.label}
+                    </button>
+                  )}
                 </div>
 
                 <button
                   onClick={() => removeAlert(alert.id)}
-                  className="p-1 text-gray-500 hover:text-white transition-colors"
+                  className="p-1 text-gray-500 hover:text-white transition-colors self-start"
                 >
                   <X className="w-4 h-4" />
                 </button>

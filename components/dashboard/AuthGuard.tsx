@@ -27,10 +27,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       .then((data) => {
         if (data && !data.error) {
           // Check if profile is actually completed
-          // currentStage should not be "PROFILE" (which is the default from signup)
-          // Also check that essential fields are filled
-          // Relaxed Check: If stage is advanced beyond PROFILE, trust it.
-          // Otherwise check fields.
+          // If stage is "PROFILE", we strictly check for missing fields.
           const isProfileIncomplete =
             data.currentStage === "PROFILE" &&
             (!data.gpa ||
@@ -39,7 +36,10 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
               data.preferredCountries === "[]");
 
           if (isProfileIncomplete) {
-            console.log("Profile incomplete, redirecting...", data);
+            console.log(
+              "Profile incomplete, redirecting to onboarding...",
+              data,
+            );
             router.push("/onboarding");
           } else {
             setLoading(false);

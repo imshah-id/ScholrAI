@@ -54,11 +54,41 @@ export default function UniversityDetailsPage() {
         const data = await res.json();
         setUni(data);
         sessionStorage.setItem(cacheKey, JSON.stringify(data));
+
+        // AI ENRICHMENT TRIGGER
+        // If external or missing critical data (fees is "$0"), trigger enrichment
+        if (data.fees === "$0" || data.rank === 999) {
+          triggerEnrichment(data.id, data.name);
+        }
       }
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const triggerEnrichment = async (uniId: string, uniName: string) => {
+    // Don't await this blocking UI, do it in background and update state
+    console.log("Triggering AI Enrichment...");
+    try {
+      const res = await fetch("/api/universities/enrich", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ universityId: uniId, universityName: uniName }),
+      });
+      if (res.ok) {
+        const enriched = await res.json();
+        // Merge and Update State
+        setUni((prev: any) => ({ ...prev, ...enriched.data }));
+        // Update Cache
+        sessionStorage.setItem(
+          `scholrai_uni_details_${uniId}`,
+          JSON.stringify(enriched.data),
+        );
+      }
+    } catch (e) {
+      console.error("Enrichment failed", e);
     }
   };
 

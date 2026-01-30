@@ -16,10 +16,12 @@ import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 
+import { useShortlist } from "@/components/dashboard/ShortlistContext";
+
 export function Sidebar() {
   const pathname = usePathname();
+  const { count: shortlistCount } = useShortlist();
   const [user, setUser] = useState<any>(null);
-  const [shortlistCount, setShortlistCount] = useState(0);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
@@ -31,12 +33,6 @@ export function Sidebar() {
         if (data) setUser(data);
       })
       .catch((err) => console.error("Sidebar auth check failed", err));
-
-    // Fetch Shortlist Count
-    fetch("/api/shortlist")
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => setShortlistCount(data.length))
-      .catch((err) => console.error("Shortlist fetch failed", err));
   }, []);
 
   const links = [

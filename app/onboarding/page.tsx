@@ -9,8 +9,10 @@ import {
   Check,
   Mic,
   Keyboard,
-  Volume2,
+  Search,
   Sparkles,
+  Volume2,
+  ArrowRight,
 } from "lucide-react";
 import { MAJOR_MAP } from "@/lib/constants";
 import { useAlert } from "@/components/ui/AlertSystem";
@@ -157,7 +159,12 @@ export default function OnboardingPage() {
           const recognition = new SpeechRecognition();
           recognition.continuous = false;
           // Detect user's language for better accent support (e.g., en-IN)
-          recognition.lang = navigator.language || "en-US";
+          // Explicitly fallback to 'en-IN' if locale is generic English, as per request for better accent handling
+          recognition.lang =
+            navigator.language === "en-US"
+              ? "en-US"
+              : navigator.language || "en-IN";
+          if (!recognition.lang.includes("-")) recognition.lang = "en-IN"; // Default to Indian English if undecided
           recognition.interimResults = false;
 
           recognition.onstart = () => setIsListening(true);
@@ -170,12 +177,11 @@ export default function OnboardingPage() {
           };
 
           recognition.onerror = (event: any) => {
-            if (event.error === "no-speech") {
-              // Expected behavior when user is silent. Don't log as error.
+            if (event.error === "no-speech" || event.error === "aborted") {
+              // Expected behavior:
+              // 'no-speech' = user silent
+              // 'aborted' = we manually stopped/restarted it
               setIsListening(false);
-              speak("I didn't hear anything. Could you repeat that?", () =>
-                startListening(),
-              );
               return;
             }
 
@@ -205,16 +211,22 @@ export default function OnboardingPage() {
 
       // Improve Voice Selection for different locales
       const voices = window.speechSynthesis.getVoices();
-      // Prefer "Google US English" or "Google UK English" or just a high quality local
-      // If we can match user's lang, great.
+
+      // Attempt to find premium/natural sounding voices
+      // Priority: Edge/Microsoft Online > Google > System Default
       const preferredVoice =
-        voices.find((v) => v.lang === navigator.language && v.localService) ||
+        voices.find((v) => v.name.includes("Natural")) || // Edge/Online voices often have "Natural"
         voices.find((v) => v.name.includes("Google US English")) ||
-        voices.find((v) => v.name.includes("Samantha"));
+        voices.find((v) => v.name.includes("Microsoft Zira")) ||
+        voices.find((v) => v.name.includes("Microsoft David")) ||
+        voices.find((v) => v.name.includes("Samantha")) ||
+        voices.find((v) => v.lang.startsWith("en-")); // Any English fallback
 
       if (preferredVoice) utterance.voice = preferredVoice;
 
-      setAiMessage(text);
+      // Tuning for more natural sound
+      utterance.pitch = 1.0;
+      utterance.rate = 1.1; // Slightly faster flows better for most TTS engines
 
       utterance.onend = () => {
         // Small delay to ensure synthesis is fully teardown before mic starts
@@ -241,7 +253,14 @@ export default function OnboardingPage() {
         recognitionRef.current.abort();
         setTimeout(() => {
           if (recognitionRef.current && mode === "voice") {
-            recognitionRef.current.start();
+            try {
+              recognitionRef.current.start();
+            } catch (err: any) {
+              // If already started, ignore. safely.
+              if (err.name !== "InvalidStateError") {
+                console.error("Mic restart error", err);
+              }
+            }
           }
         }, 100);
       } catch (e) {
@@ -252,6 +271,7 @@ export default function OnboardingPage() {
 
   // AI Processing State
   const [isProcessing, setIsProcessing] = useState(false);
+  const [inputText, setInputText] = useState("");
 
   // Triggered by the USER clicking "Start" button
   // Triggered by the USER clicking "Start" button
@@ -259,7 +279,7 @@ export default function OnboardingPage() {
     setVoiceStep(1);
     voiceStepRef.current = 1; // Sync Ref!
     speak(
-      "Hello! I am so glad to help you on this journey. Let's start with your goal. What kind of degree are you dreaming of pursuing?",
+      "Hi there! I'm excited to help you plan your journey. First off, what kind of degree are you looking to pursue?",
       () => {
         startListening();
       },
@@ -267,7 +287,12 @@ export default function OnboardingPage() {
   };
 
   const handleMicTap = () => {
-    if (!isListening && !isProcessing) {
+    if (isListening) {
+      // Mute / Stop Listening
+      if (recognitionRef.current) recognitionRef.current.stop();
+      setIsListening(false);
+    } else if (!isProcessing) {
+      // Unmute / Start Listening
       startListening();
     }
   };
@@ -305,8 +330,9 @@ export default function OnboardingPage() {
         degree = "Masters";
 
       if (!degree) {
+        // STRICT MODE: If no keyword matches, REJECT.
         speak(
-          "I didn't catch the degree type. Are you looking for a Bachelors, Masters, or PhD?",
+          "I didn't quite catch that. Please say Bachelors, Masters, PhD, or MBA.",
           () => startListening(),
         );
         return;
@@ -323,7 +349,33 @@ export default function OnboardingPage() {
 
     // --- STEP 1.1: HIGHEST QUALIFICATION ---
     else if (currentStep === 1.1) {
-      const qual = text; // Free text for now, can add keyword matching later
+      const low = text.toLowerCase();
+      let qual = "";
+      if (
+        low.includes("high school") ||
+        low.includes("12th") ||
+        low.includes("school")
+      )
+        qual = "High School";
+      else if (
+        low.includes("bachelor") ||
+        low.includes("degree") ||
+        low.includes("undergrad")
+      )
+        qual = "Bachelors";
+      else if (low.includes("master") || low.includes("postgrad"))
+        qual = "Masters";
+      else if (low.includes("diploma")) qual = "Diploma";
+      else if (low.includes("phd") || low.includes("doctorate")) qual = "PhD";
+
+      if (!qual) {
+        speak(
+          "Could you clarify? For example: High School, Bachelors, or Masters.",
+          () => startListening(),
+        );
+        return;
+      }
+
       updateStore({ highestQualification: qual });
 
       speak("Understood. And what was your field of study?", () =>
@@ -333,12 +385,101 @@ export default function OnboardingPage() {
       voiceStepRef.current = 1.2;
     }
 
-    // --- STEP 1.2: FIELD OF STUDY ---
+    // --- STEP 1.2: PAST FIELD OF STUDY (Background) ---
     else if (currentStep === 1.2) {
-      updateStore({ fieldOfStudy: text });
+      const lower = text.toLowerCase();
+      let selectedField = "";
+
+      // 1. Keyword check for popular fields
+      if (
+        lower.includes("cs") ||
+        lower.includes("comp sci") ||
+        lower.includes("computer")
+      )
+        selectedField = "Computer Science";
+      else if (lower.includes("ai") || lower.includes("artificial"))
+        selectedField = "Artificial Intelligence";
+      else if (lower.includes("mech")) selectedField = "Mechanical Engineering";
+      else if (lower.includes("civil")) selectedField = "Civil Engineering";
+      else if (lower.includes("elec")) selectedField = "Electrical Engineering";
+      else if (lower.includes("biz") || lower.includes("business"))
+        selectedField = "Business Administration";
+      else if (lower.includes("psych")) selectedField = "Psychology";
+      else if (lower.includes("bio")) selectedField = "Biology";
+      else if (lower.includes("chem")) selectedField = "Chemistry";
+      else if (lower.includes("phy")) selectedField = "Physics";
+      else if (lower.includes("math")) selectedField = "Mathematics";
+      else if (lower.includes("eng")) selectedField = "English";
+      else if (lower.includes("hist")) selectedField = "History";
+      else if (lower.includes("arch")) selectedField = "Architecture";
+
+      // 2. Fallback: custom input
+      if (!selectedField) {
+        if (
+          text.length > 3 &&
+          !["no", "yes", "nope", "cancel"].includes(lower)
+        ) {
+          selectedField = text;
+        }
+      }
+
+      if (!selectedField) {
+        speak(
+          `I didn't quite catch your background field. Could you say it again? e.g. "Computer Science" or "Biology"`,
+          () => startListening(),
+        );
+        return;
+      }
+
+      updateStore({ fieldOfStudy: selectedField });
+
+      speak(`Got it. Now, what specific major do you want to pursue?`, () =>
+        startListening(),
+      );
+      setVoiceStep(1.3); // New Step for Target Major
+      voiceStepRef.current = 1.3;
+    }
+
+    // --- STEP 1.3: TARGET DEGREE FIELD (Goal) ---
+    else if (currentStep === 1.3) {
+      const lower = text.toLowerCase();
+      let targetField = "";
+
+      // 1. Check against MAJOR_MAP
+      const degreeType = store.targetDegree || "Masters";
+      const possibleMajors = MAJOR_MAP[degreeType] || [];
+      const match = possibleMajors.find((m) => lower.includes(m.toLowerCase()));
+
+      if (match) targetField = match;
+
+      // 2. Synonyms if not matched
+      if (!targetField) {
+        if (lower.includes("cs") || lower.includes("comp sci"))
+          targetField = "Computer Science";
+        else if (lower.includes("ai")) targetField = "Artificial Intelligence";
+        else if (lower.includes("data")) targetField = "Data Science";
+        else if (lower.includes("cyber")) targetField = "Cybersecurity";
+        else if (lower.includes("marketing")) targetField = "Marketing";
+        else if (lower.includes("fin")) targetField = "Finance";
+      }
+
+      // 3. Fallback
+      if (!targetField && text.length > 3) {
+        targetField = text;
+      }
+
+      if (!targetField) {
+        speak(
+          `Please specify your target major again. For example: Data Science, MBA, or Psychology.`,
+          () => startListening(),
+        );
+        return;
+      }
+
+      updateStore({ targetMajor: targetField });
 
       speak(
-        "Got it. When do you plan to start your studies? For example, Fall 2026.",
+        `Excellent choice. When do you plan to start your studies? For example, Fall 2026.`,
         () => startListening(),
       );
       setVoiceStep(1.5);
@@ -373,7 +514,23 @@ export default function OnboardingPage() {
 
     // --- STEP 1.8: CITIZENSHIPFor (NEW) ---
     else if (currentStep === 1.8) {
-      const country = text; // Capture text
+      const cLower = text.toLowerCase();
+      // Basic validation: Must match list or look like a country name
+      // Logic: If it's very short or clearly junk, reject.
+      // List check is best.
+      const validCountries = CITIZENSHIP_OPTIONS.map((c) => c.toLowerCase());
+      const match = validCountries.find((c) => cLower.includes(c));
+      const country = match
+        ? CITIZENSHIP_OPTIONS[validCountries.indexOf(match)]
+        : text; // Use matched exact casing or raw text
+
+      if (text.length < 3) {
+        speak("Could you please say your citizenship country again?", () =>
+          startListening(),
+        );
+        return;
+      }
+
       updateStore({ citizenship: country });
 
       speak(
@@ -879,58 +1036,213 @@ export default function OnboardingPage() {
   if (mode === "voice") {
     return (
       <div className="min-h-screen bg-navy-900 text-white flex flex-col items-center justify-center p-6 relative overflow-hidden">
-        {/* Background Pulse */}
+        {/* Immersive Background */}
+        <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10 pointer-events-none" />
         <div
-          className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-[100px] transition-all duration-500 ${isListening ? "scale-125 opacity-100" : "scale-100 opacity-50"}`}
+          className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-500/10 rounded-full blur-[120px] transition-all duration-1000 ${isListening ? "scale-110 opacity-100" : "scale-100 opacity-60"}`}
         />
 
-        <div className="relative z-10 text-center space-y-8 max-w-2xl">
-          <div className="bg-navy-800/80 backdrop-blur-md border border-white/10 p-8 rounded-3xl shadow-2xl">
+        <div className="relative z-10 w-full max-w-2xl">
+          <div className="bg-navy-800/60 backdrop-blur-xl border border-white/10 p-12 rounded-[3rem] shadow-2xl relative overflow-hidden min-h-[500px] flex flex-col justify-between">
+            {/* Decorative Top-light */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-1 bg-gradient-to-r from-transparent via-purple-400 to-transparent opacity-50" />
+
             {voiceStep === 0 ? (
-              <div className="text-center py-8">
-                <div className="w-20 h-20 bg-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Mic className="w-8 h-8 text-purple-400" />
-                </div>
-                <h2 className="text-2xl font-bold mb-4">Ready to start?</h2>
-                <p className="text-gray-400 mb-6">
-                  Make sure your microphone is enabled.
-                </p>
-                <button
-                  onClick={handleStartVoiceInteraction}
-                  className="bg-purple-500 hover:bg-purple-400 text-white font-bold px-8 py-3 rounded-xl transition-colors shadow-lg shadow-purple-500/20"
-                >
-                  Start Interview
-                </button>
-              </div>
-            ) : (
-              <>
-                <div className="flex justify-center mb-6">
-                  <div
-                    onClick={handleMicTap}
-                    className={`w-24 h-24 rounded-full flex items-center justify-center transition-all duration-300 cursor-pointer ${isListening ? "bg-purple-500 text-white animate-pulse" : "bg-navy-900 text-gray-400 border border-white/10 hover:border-purple-400"}`}
-                  >
-                    {isListening ? (
-                      <Mic className="w-10 h-10" />
-                    ) : (
-                      <Volume2 className="w-10 h-10" />
-                    )}
+              <div className="text-center py-12 flex flex-col items-center justify-center h-full flex-1">
+                <div className="relative mb-8">
+                  <div className="w-32 h-32 bg-gradient-to-br from-purple-500 to-blue-600 rounded-full animate-pulse blur-xl opacity-50 absolute inset-0" />
+                  <div className="w-32 h-32 bg-navy-900 rounded-full flex items-center justify-center relative z-10 border border-white/10 shadow-2xl">
+                    <Mic className="w-12 h-12 text-purple-400" />
                   </div>
                 </div>
 
-                <h2 className="text-2xl font-bold mb-4 min-h-[64px]">
-                  {aiMessage}
+                <h2 className="text-4xl md:text-5xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-b from-white to-white/70 tracking-tight">
+                  Start Your Journey
                 </h2>
-
-                <div className="bg-navy-900/50 p-4 rounded-xl items-center justify-center min-h-[60px] flex">
-                  {transcript ? (
-                    <p className="text-lg text-teal-400">"{transcript}"</p>
-                  ) : (
-                    <p className="text-sm text-gray-500 italic">
-                      {isListening ? "Listening..." : "Tap the icon if stopped"}
-                    </p>
-                  )}
+                <p className="text-xl text-gray-400 mb-10 max-w-lg mx-auto leading-relaxed">
+                  I'm your AI Counselor. Let's have a brief conversation to
+                  build your perfect study abroad profile.
+                </p>
+                <button
+                  onClick={handleStartVoiceInteraction}
+                  className="group relative px-12 py-5 bg-white text-navy-900 font-bold text-lg rounded-full shadow-[0_0_40px_rgba(255,255,255,0.3)] hover:shadow-[0_0_60px_rgba(255,255,255,0.5)] transition-all transform hover:-translate-y-1 overflow-hidden"
+                >
+                  <span className="relative z-10">Start Conversation</span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-purple-400 to-blue-400 opacity-0 group-hover:opacity-10 transition-opacity" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col h-full justify-between">
+                {/* Header: Progress & Status */}
+                <div className="w-full px-8 pt-4 mb-8">
+                  <div className="flex justify-between items-center mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                      <span className="text-xs font-bold text-red-400 tracking-widest uppercase">
+                        Live Session
+                      </span>
+                    </div>
+                    <span className="text-sm font-medium text-white/40">
+                      Step {Math.floor(voiceStep) || 1} of 7
+                    </span>
+                  </div>
+                  <div className="h-1 bg-white/5 rounded-full overflow-hidden w-full">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{
+                        width: `${(Math.floor(voiceStep) / 7) * 100}%`,
+                      }}
+                      className="h-full bg-gradient-to-r from-purple-500 to-blue-500"
+                    />
+                  </div>
                 </div>
-              </>
+
+                {/* Main Interaction Area */}
+                <div className="flex-1 flex flex-col items-center justify-center min-h-[300px] relative">
+                  {/* The AI Avatar Centerpiece */}
+                  <div className="relative mb-12">
+                    {/* The Glow */}
+                    <motion.div
+                      animate={{
+                        scale: isListening ? [1, 1.2, 1] : [1, 1.05, 1],
+                        opacity: isListening ? 0.8 : 0.3,
+                      }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                      className="absolute inset-0 bg-gradient-to-tr from-purple-500 to-teal-500 rounded-full blur-3xl"
+                    />
+
+                    {/* The Orb */}
+                    <div className="relative z-10 w-32 h-32 rounded-full bg-navy-900 border border-white/10 flex items-center justify-center shadow-2xl overflow-hidden backdrop-blur-md">
+                      <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-50" />
+
+                      {/* Internal Visualizer */}
+                      <div className="flex items-center gap-1 h-12">
+                        {isListening ? (
+                          Array.from({ length: 4 }).map((_, i) => (
+                            <motion.div
+                              key={i}
+                              animate={{
+                                height: [10, 30 + Math.random() * 20, 10],
+                              }}
+                              transition={{
+                                duration: 0.4,
+                                repeat: Infinity,
+                                delay: i * 0.1,
+                              }}
+                              className="w-1.5 bg-white rounded-full"
+                            />
+                          ))
+                        ) : (
+                          <div className="w-2 h-2 bg-teal-400 rounded-full animate-ping" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* AI Message */}
+                  <AnimatePresence mode="wait">
+                    <motion.h2
+                      key={aiMessage}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="text-3xl md:text-4xl font-medium text-center text-white leading-tight max-w-2xl px-4"
+                    >
+                      {aiMessage}
+                    </motion.h2>
+                  </AnimatePresence>
+                </div>
+
+                {/* User Input Area (Hybrid Voice + Text) */}
+                <div className="mt-8 min-h-[140px] flex flex-col items-center justify-end pb-8 gap-4">
+                  {/* Voice Status / Transcript Display */}
+                  <div
+                    className={`transition-all duration-300 ${isListening ? "opacity-100 transform scale-100" : "opacity-60 transform scale-95"}`}
+                  >
+                    {isListening && (
+                      <div className="flex items-center gap-2 text-purple-300/80 bg-purple-500/10 px-4 py-2 rounded-full border border-purple-500/20 mb-2">
+                        <Mic className="w-4 h-4 animate-pulse" />
+                        <span className="text-sm font-medium">
+                          Listening... "{transcript}"
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Text Input Box */}
+                  <div className="relative w-full max-w-lg group">
+                    <input
+                      type="text"
+                      value={inputText}
+                      onFocus={() => {
+                        // Intelligent Auto-Mute: If focusing to type, stop the mic to prevent interference
+                        if (isListening && recognitionRef.current) {
+                          recognitionRef.current.stop();
+                          setIsListening(false);
+                        }
+                      }}
+                      onChange={(e) => setInputText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && inputText.trim()) {
+                          handleVoiceInput(inputText); // Reuse logic!
+                          setInputText("");
+                          setTranscript(inputText); // Visual feedback
+                          // Stop listening if they decided to type
+                          if (recognitionRef.current)
+                            recognitionRef.current.stop();
+                        }
+                      }}
+                      placeholder={
+                        isListening
+                          ? "Listening... (Tap to type)"
+                          : "Type your answer..."
+                      }
+                      className="w-full bg-navy-950/50 border border-white/10 rounded-2xl px-6 py-4 pl-14 text-white placeholder:text-gray-500 focus:outline-none focus:border-purple-500/50 focus:bg-navy-900/80 focus:ring-4 focus:ring-purple-500/10 transition-all shadow-lg backdrop-blur-sm"
+                    />
+                    <div className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-purple-400 transition-colors">
+                      <Keyboard className="w-5 h-5" />
+                    </div>
+
+                    {/* Send Button (only if text exists) */}
+                    {inputText.trim() && (
+                      <button
+                        onClick={() => {
+                          handleVoiceInput(inputText);
+                          setInputText("");
+                          setTranscript(inputText);
+                          if (recognitionRef.current)
+                            recognitionRef.current.stop();
+                        }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 bg-purple-500 hover:bg-purple-400 text-white p-2 rounded-xl transition-all shadow-lg"
+                      >
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Persistent Voice Control Toggle */}
+                  <div className="flex gap-4">
+                    <button
+                      onClick={handleMicTap}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all text-sm font-medium ${isListening ? "bg-red-500/10 border-red-500/30 text-red-300 hover:bg-red-500/20" : "bg-purple-500/10 border-purple-500/30 text-purple-300 hover:bg-purple-500/20"}`}
+                    >
+                      {isListening ? (
+                        <>
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                          </span>
+                          Tap to Mute Mic
+                        </>
+                      ) : (
+                        <>
+                          <Mic className="w-4 h-4" /> Tap to Unmute
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
 
@@ -1011,6 +1323,31 @@ export default function OnboardingPage() {
                         </motion.button>
                       ))}
                     </div>
+                  </div>
+
+                  {/* Target Major (New Field) */}
+                  <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Preferred Major / Specialization
+                    </label>
+                    <select
+                      className="w-full bg-navy-900 border border-white/10 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/50 outline-none appearance-none text-white transition-colors"
+                      value={data.targetMajor || ""}
+                      onChange={(e) =>
+                        updateData("targetMajor", e.target.value)
+                      }
+                    >
+                      <option value="" className="text-gray-400">
+                        Select Target Major
+                      </option>
+                      {(MAJOR_MAP[data.targetDegree || "Masters"] || []).map(
+                        (m) => (
+                          <option key={m} value={m} className="bg-navy-900">
+                            {m}
+                          </option>
+                        ),
+                      )}
+                    </select>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">

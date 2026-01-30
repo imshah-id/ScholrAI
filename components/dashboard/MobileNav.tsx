@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   User,
@@ -12,17 +11,11 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useShortlist } from "@/components/dashboard/ShortlistContext";
 
 export function MobileNav() {
   const pathname = usePathname();
-  const [count, setCount] = useState(0);
-
-  useEffect(() => {
-    fetch("/api/shortlist")
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => setCount(data.length))
-      .catch(() => {});
-  }, []);
+  const { count } = useShortlist();
 
   const links = [
     { name: "Home", href: "/dashboard", icon: LayoutDashboard },

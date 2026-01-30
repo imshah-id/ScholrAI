@@ -16,6 +16,7 @@ model User {
   profile      Profile?
   shortlist    Shortlist[]
   documents    Document[]
+  chatSessions ChatSession[]
 }
 
 model Document {
@@ -23,10 +24,10 @@ model Document {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   name      String
-  category  String   // "Resume", "SOP", "Transcript"
+  category  String   @default("General") // "Resume", "SOP", "Transcript"
   mimeType  String
   size      Int
-  data      String   // Base64 storage
+  data      String   // Base64 storage - Hackathon only!
   createdAt DateTime @default(now())
 }
 
@@ -90,4 +91,16 @@ model GuidanceTask {
   dueDate     String?   // mocked for now, or DateTime
 
   @@index([shortlistId])
+}
+
+model ChatSession {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  messages  String   // Stored as JSON string [ {role: "user", content: "..."}, ... ]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }

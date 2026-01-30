@@ -122,13 +122,21 @@ export async function GET() {
       select: { isLocked: true },
     });
 
-    let calculatedStage = "DISCOVERY";
     const hasLocked = shortlistItems.some((item) => item.isLocked);
+
+    // Default to the actual stored stage (Preserve PROFILE)
+    let calculatedStage = user.profile?.currentStage || "DISCOVERY";
 
     if (hasLocked) {
       calculatedStage = "GUIDANCE";
     } else if (shortlistItems.length > 0) {
       calculatedStage = "SHORTLIST";
+    } else {
+      // If no items, fallback to DISCOVERY only if they were in SHORTLIST/GUIDANCE
+      // Do NOT touch PROFILE stage (User hasn't finished onboarding)
+      if (calculatedStage === "SHORTLIST" || calculatedStage === "GUIDANCE") {
+        calculatedStage = "DISCOVERY";
+      }
     }
 
     // Update DB if different (self-healing) - Fire and forget (don't await)

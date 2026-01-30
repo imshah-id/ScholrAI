@@ -2,14 +2,22 @@
 
 import { NavBar } from "@/components/landing/NavBar";
 import { Hero } from "@/components/landing/Hero";
+import { UniversityMarquee } from "@/components/landing/UniversityMarquee";
 import { Features } from "@/components/landing/Features";
+import { HowItWorks } from "@/components/landing/HowItWorks";
+import { GlobalImpact } from "@/components/landing/GlobalImpact";
+import { Testimonials } from "@/components/landing/Testimonials";
 
 export default function Home() {
   return (
     <main className="min-h-screen bg-navy-900 text-white overflow-hidden selection:bg-teal-500/30">
       <NavBar />
       <Hero />
+      <UniversityMarquee />
       <Features />
+      <HowItWorks />
+      <GlobalImpact />
+      <Testimonials />
 
       {/* Short Footer */}
       <footer className="py-8 border-t border-white/5 text-center text-gray-500 text-sm">

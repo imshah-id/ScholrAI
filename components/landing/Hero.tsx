@@ -113,62 +113,71 @@ export function Hero() {
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
                   data={[
-                    { year: "2020", rate: 35 },
-                    { year: "2021", rate: 45 },
-                    { year: "2022", rate: 40 },
-                    { year: "2023", rate: 65 },
-                    { year: "2024", rate: 60 },
-                    { year: "2025", rate: 85 },
-                    { year: "2026", rate: 95 },
+                    { year: "2020", avg: 30, scholr: 45 },
+                    { year: "2021", avg: 32, scholr: 58 },
+                    { year: "2022", avg: 28, scholr: 65 },
+                    { year: "2023", avg: 35, scholr: 82 },
+                    { year: "2024", avg: 33, scholr: 88 },
+                    { year: "2025", avg: 38, scholr: 96 },
                   ]}
+                  margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
                 >
                   <defs>
                     <linearGradient
-                      id="areaGradient"
+                      id="colorScholr"
                       x1="0"
                       y1="0"
                       x2="0"
                       y2="1"
                     >
-                      <stop offset="5%" stopColor="#2dd4bf" stopOpacity={0.3} />
+                      <stop offset="5%" stopColor="#2dd4bf" stopOpacity={0.8} />
                       <stop offset="95%" stopColor="#2dd4bf" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="colorAvg" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.5} />
+                      <stop offset="95%" stopColor="#94a3b8" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid
                     strokeDasharray="3 3"
-                    stroke="rgba(255,255,255,0.1)"
+                    stroke="rgba(255,255,255,0.05)"
                     vertical={false}
                   />
                   <XAxis
                     dataKey="year"
-                    stroke="#94a3b8"
-                    tick={{ fontSize: 12 }}
+                    stroke="#475569"
+                    tick={{ fontSize: 10 }}
                     tickLine={false}
                     axisLine={false}
+                    dy={10}
                   />
                   <YAxis hide domain={[0, 100]} />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: "#0f172a",
                       borderColor: "rgba(255,255,255,0.1)",
-                      borderRadius: "8px",
-                      color: "#f8fafc",
+                      borderRadius: "12px",
+                      boxShadow: "0 10px 30px -10px rgba(0,0,0,0.5)",
                     }}
-                    itemStyle={{ color: "#2dd4bf" }}
-                    cursor={{
-                      stroke: "rgba(255,255,255,0.2)",
-                      strokeWidth: 1,
-                      strokeDasharray: "4 4",
-                    }}
+                    cursor={{ stroke: "rgba(255,255,255,0.1)", strokeWidth: 1 }}
                   />
                   <Area
                     type="monotone"
-                    dataKey="rate"
-                    stroke="#2dd4bf"
+                    dataKey="avg"
+                    stroke="#94a3b8"
+                    strokeWidth={2}
                     fillOpacity={1}
-                    fill="url(#areaGradient)"
+                    fill="url(#colorAvg)"
+                    name="Global Avg"
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="scholr"
+                    stroke="#2dd4bf"
                     strokeWidth={4}
-                    animationDuration={2000}
+                    fillOpacity={1}
+                    fill="url(#colorScholr)"
+                    name="ScholrAI"
                   />
                 </AreaChart>
               </ResponsiveContainer>

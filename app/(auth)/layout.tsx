@@ -110,8 +110,17 @@ export default function AuthLayout({
       </div>
 
       {/* Form Side */}
-      <div className="flex items-center justify-center p-6 bg-navy-950">
-        <div className="w-full max-w-md space-y-8">{children}</div>
+      <div className="flex items-center justify-center p-6 bg-navy-950 relative overflow-hidden">
+        <div
+          className="absolute inset-0 z-0 opacity-[0.03]"
+          style={{
+            backgroundImage: "radial-gradient(#ffffff 1px, transparent 1px)",
+            backgroundSize: "24px 24px",
+          }}
+        />
+        <div className="w-full max-w-md space-y-8 relative z-10">
+          {children}
+        </div>
       </div>
     </div>
   );

@@ -32,12 +32,57 @@ export async function POST(req: Request) {
     if (!session)
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { universityId, name } = await req.json();
+    const { universityId, name, universityData } = await req.json();
 
     let finalUniversityId = universityId;
 
-    // If name provided instead of ID (from AI Counsellor), look it up
-    if (!universityId && name) {
+    // Handle External University Creation (JIT)
+    if (universityData && !name) {
+      // Check if university exists by name
+      const existingUni = await prisma.university.findUnique({
+        where: { name: universityData.name },
+      });
+
+      if (existingUni) {
+        finalUniversityId = existingUni.id;
+      } else {
+        // Create new external university
+        console.log("Creating new external university:", universityData.name);
+        try {
+          const newUni = await prisma.university.create({
+            data: {
+              // If ID is provided (hipo_...), use it, otherwise let Prisma generate
+              id: universityId?.startsWith("hipo_") ? universityId : undefined,
+              name: universityData.name,
+              country: universityData.country || "Unknown",
+              location: universityData.country || "Unknown", // Fallback for location
+              rank: 9999, // Placeholder
+              fees: "TBD",
+              acceptanceRate: "TBD",
+              tags: JSON.stringify(["External", "Hipo"]),
+            },
+          });
+          finalUniversityId = newUni.id;
+        } catch (createError) {
+          console.error("Failed to create external university", createError);
+          // Race condition fallback: check if it was created just now
+          const retryUni = await prisma.university.findUnique({
+            where: { name: universityData.name },
+          });
+          if (retryUni) {
+            finalUniversityId = retryUni.id;
+          } else {
+            return NextResponse.json(
+              { error: "Failed to create university record" },
+              { status: 500 },
+            );
+          }
+        }
+      }
+    }
+
+    // If name provided instead of ID (from AI Counsellor legacy flow), look it up
+    if (!universityId && name && !universityData) {
       const university = await prisma.university.findFirst({
         where: {
           name: {
@@ -152,52 +197,93 @@ export async function PATCH(req: Request) {
           });
         };
 
-        const COMPREHENSIVE_TASKS = [
-          {
-            title: `Write Statement of Purpose for ${university.name}`,
-            type: "Essay",
-            status: "pending",
-            dueDate: formatDate(14), // 2 weeks
-          },
-          {
-            title: "Prepare 2-3 Letters of Recommendation",
-            type: "Documents",
-            status: "pending",
-            dueDate: formatDate(21), // 3 weeks
-          },
-          {
-            title: "Request Official Transcripts",
-            type: "Documents",
-            status: "pending",
-            dueDate: formatDate(7), // 1 week
-          },
-          {
-            title: "Upload English Test Scores (IELTS/TOEFL)",
-            type: "Documents",
-            status: "pending",
-            dueDate: formatDate(14), // 2 weeks
-          },
-          {
-            title: `Complete ${university.name} Application Form`,
-            type: "Admin",
-            status: "pending",
-            dueDate: formatDate(28), // 4 weeks
-          },
-          {
-            title: "Prepare Financial Documents & Bank Statements",
-            type: "Documents",
-            status: "pending",
-            dueDate: formatDate(21), // 3 weeks
-          },
-          {
-            title: "Update Resume/CV",
-            type: "Documents",
-            status: "pending",
-            dueDate: formatDate(7), // 1 week
-          },
-        ];
+        // AI GENERATED ROADMAP
+        try {
+          console.log("Generating AI Roadmap for", university.name);
+          const { GoogleGenerativeAI } = require("@google/generative-ai");
+          const genAI = new GoogleGenerativeAI(
+            process.env.GEMINI_API_KEY || "",
+          );
+          const model = genAI.getGenerativeModel({
+            model: "gemini-2.0-flash-lite-preview-02-05", // Fast model
+            generationConfig: { responseMimeType: "application/json" },
+          });
 
-        if (COMPREHENSIVE_TASKS.length > 0) {
+          const prompt = `
+                Create a specific, step-by-step application checklist for an international student applying to ${university.name}.
+                Structure the response as a JSON array of objects with fields:
+                - title: Actionable task name (e.g. "Draft Statement of Purpose", "Submit CSS Profile").
+                - type: One of "Essay", "Documents", "Admin", "Test".
+                - daysDue: Integer number of days from now the deadline should be roughly (e.g. 7 for 1 week, 60 for 2 months). Order them chronologically.
+                Limit to 8-10 high-impact tasks.
+            `;
+
+          const result = await model.generateContent(prompt);
+          const tasks = JSON.parse(result.response.text());
+
+          if (Array.isArray(tasks) && tasks.length > 0) {
+            await prisma.guidanceTask.createMany({
+              data: tasks.map((task: any) => ({
+                shortlistId: updated.id,
+                title: task.title,
+                type: task.type || "Admin",
+                status: "pending",
+                dueDate: formatDate(task.daysDue || 30),
+              })),
+            });
+          } else {
+            throw new Error("Invalid AI response");
+          }
+        } catch (aiError) {
+          console.error(
+            "AI Roadmap Generation Failed, using fallback:",
+            aiError,
+          );
+          // Fallback to static list
+          const COMPREHENSIVE_TASKS = [
+            {
+              title: `Write Statement of Purpose for ${university.name}`,
+              type: "Essay",
+              status: "pending",
+              dueDate: formatDate(14),
+            },
+            {
+              title: "Prepare 2-3 Letters of Recommendation",
+              type: "Documents",
+              status: "pending",
+              dueDate: formatDate(21),
+            },
+            {
+              title: "Request Official Transcripts",
+              type: "Documents",
+              status: "pending",
+              dueDate: formatDate(7),
+            },
+            {
+              title: "Upload English Test Scores (IELTS/TOEFL)",
+              type: "Documents",
+              status: "pending",
+              dueDate: formatDate(14),
+            },
+            {
+              title: `Complete ${university.name} Application Form`,
+              type: "Admin",
+              status: "pending",
+              dueDate: formatDate(28),
+            },
+            {
+              title: "Prepare Financial Documents",
+              type: "Documents",
+              status: "pending",
+              dueDate: formatDate(21),
+            },
+            {
+              title: "Update Resume/CV",
+              type: "Documents",
+              status: "pending",
+              dueDate: formatDate(7),
+            },
+          ];
           await prisma.guidanceTask.createMany({
             data: COMPREHENSIVE_TASKS.map((task) => ({
               shortlistId: updated.id,

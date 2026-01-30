@@ -44,18 +44,79 @@ export default function GuidancePage() {
   const [tipsLoading, setTipsLoading] = useState(false);
   const [activeTaskTitle, setActiveTaskTitle] = useState("");
 
-  // Documents State
-  interface UploadedFile {
-    id: string;
-    name: string;
-    date: string;
-  }
-  const [documents, setDocuments] = useState<UploadedFile[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // New Features State
+  const [showInterviewModal, setShowInterviewModal] = useState(false);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [interviewQuestion, setInterviewQuestion] = useState("");
+  const [interviewAnswer, setInterviewAnswer] = useState("");
+  const [interviewFeedback, setInterviewFeedback] = useState("");
+  const [interviewLoading, setInterviewLoading] = useState(false);
+
+  const handleSubmitApplication = () => {
+    setHasSubmitted(true);
+    // Trigger confetti or sound here if possible
+    const audio = new Audio(
+      "https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3",
+    ); // Simple chime
+    audio.play().catch((e) => {});
+    showAlert("Application Marked as Submitted! Good luck!", "success");
+  };
+
+  const handleStartInterview = async () => {
+    setInterviewLoading(true);
+    setInterviewFeedback("");
+    setInterviewAnswer("");
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: `Generate a tough, university-specific interview question for ${university?.name || "a top university"}. Return ONLY the question text.`,
+        }),
+      });
+      const data = await res.json();
+      setInterviewQuestion(data.reply);
+    } catch (e) {
+    } finally {
+      setInterviewLoading(false);
+    }
+  };
+
+  const handleInterviewSubmit = async () => {
+    if (!interviewAnswer) return;
+    setInterviewLoading(true);
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: `I was asked "${interviewQuestion}" for an interview at ${university?.name}. My answer was "${interviewAnswer}". Rate this answer 1-10 and give 2 tips to improve.`,
+        }),
+      });
+      const data = await res.json();
+      setInterviewFeedback(data.reply);
+    } catch (e) {
+    } finally {
+      setInterviewLoading(false);
+    }
+  };
+
+  // Trigger interview start when modal opens
+  useEffect(() => {
+    if (showInterviewModal && !interviewQuestion) {
+      handleStartInterview();
+    }
+  }, [showInterviewModal]);
+
+  // Trigger interview start when modal opens
+  useEffect(() => {
+    if (showInterviewModal && !interviewQuestion) {
+      handleStartInterview();
+    }
+  }, [showInterviewModal]);
 
   useEffect(() => {
     fetchGuidance();
-    // Load persisted docs from local storage if needed, or just start fresh
   }, []);
 
   useEffect(() => {
@@ -63,6 +124,9 @@ export default function GuidancePage() {
       fetchTips();
     }
   }, [university]);
+
+  // AO Simulator State
+  const [aoVerdict, setAoVerdict] = useState<any>(null);
 
   const fetchTips = async () => {
     if (!university?.name) return;
@@ -88,7 +152,7 @@ export default function GuidancePage() {
       });
       if (res.ok) {
         const data = await res.json();
-        // Simple parsing: split by newlines, filter empty or short lines
+        // Simple parsing
         const cleanTips = data.reply
           .split("\n")
           .filter((line: string) => line.trim().length > 10)
@@ -112,7 +176,6 @@ export default function GuidancePage() {
         setTasks(parsed.tasks);
         setUniversity(parsed.university);
         setLoading(false);
-        // Could revalidate loosely
       } catch (e) {}
     }
 
@@ -152,13 +215,11 @@ export default function GuidancePage() {
   }
 
   const toggleTask = async (id: string) => {
-    // Find current status
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
     const currentStatus = task.status;
     const newStatus = currentStatus === "completed" ? "pending" : "completed";
 
-    // Optimistic update
     setTasks(tasks.map((t) => (t.id === id ? { ...t, status: newStatus } : t)));
 
     try {
@@ -168,20 +229,14 @@ export default function GuidancePage() {
         body: JSON.stringify({ taskId: id, status: newStatus }),
       });
 
-      // Update Cache
       const updatedTasks = tasks.map((t) =>
         t.id === id ? { ...t, status: newStatus } : t,
       );
       sessionStorage.setItem(
         "scholrai_guidance_tasks",
-        JSON.stringify({
-          tasks: updatedTasks,
-          university: university,
-        }),
+        JSON.stringify({ tasks: updatedTasks, university }),
       );
     } catch (e) {
-      console.error("Failed to update task");
-      // Revert on failure
       setTasks(
         tasks.map((t) => (t.id === id ? { ...t, status: currentStatus } : t)),
       );
@@ -216,63 +271,63 @@ export default function GuidancePage() {
     setActiveTaskTitle(taskTitle);
     setReviewText("");
     setReviewFeedback("");
+    setAoVerdict(null);
     setShowReviewModal(true);
   };
 
   const handleAIReview = async () => {
     if (!reviewText) return;
     setReviewing(true);
+    setAoVerdict(null); // Reset previous
+
     try {
+      // Direct Prompt for AO Persona
+      const prompt = `
+        ACT AS A STRICT ADMISSIONS OFFICER from ${university?.name || "a Top Tier University"}.
+        Review the following draft for the task "${activeTaskTitle}".
+        
+        You must be critical, realistic, and slightly harsh if necessary.
+        
+        Return a JSON object with:
+        - score: (0-100 integer)
+        - decision: "ACCEPTED", "WAITLISTED", or "REJECTED" (based on draft quality alone)
+        - feedback: A short markdown critique (max 3 bullets) focusing on specific weaknesses.
+        - oneLiner: A brutal or encouraging valid 1-sentence summary (e.g. "This feels generic.").
+        
+        Draft:
+        "${reviewText.substring(0, 3000)}"
+      `;
+
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: `Please review this draft for the task "${activeTaskTitle}" for ${university?.name}. Analyze its strengths and weaknesses and provide constructive feedback: \n\n${reviewText}`,
-        }),
+        body: JSON.stringify({ message: prompt }),
       });
 
       if (res.ok) {
         const data = await res.json();
-        setReviewFeedback(data.reply);
+        const cleanJson = data.reply
+          .replace(/```json/g, "")
+          .replace(/```/g, "")
+          .trim();
+        try {
+          const verdict = JSON.parse(cleanJson);
+          setAoVerdict(verdict);
+        } catch (e) {
+          setAoVerdict({
+            score: 75,
+            decision: "WAITLISTED",
+            feedback: data.reply,
+            oneLiner:
+              "Authentication error (Format), but here is the feedback.",
+          });
+        }
       }
     } catch (e) {
       console.error(e);
     } finally {
       setReviewing(false);
     }
-  };
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    if (documents.length >= 5) {
-      showAlert("You can only upload up to 5 documents.", "error");
-      return;
-    }
-
-    const file = files[0];
-    if (file.type !== "application/pdf") {
-      showAlert("Only PDF files are allowed.", "error");
-      return;
-    }
-
-    const newDoc = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: file.name,
-      date: new Date().toLocaleDateString(),
-    };
-
-    setDocuments([...documents, newDoc]);
-
-    // Reset input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  };
-
-  const removeDocument = (id: string) => {
-    setDocuments(documents.filter((doc) => doc.id !== id));
   };
 
   // Calculate Progress
@@ -362,59 +417,73 @@ export default function GuidancePage() {
             ))}
           </div>
 
-          {/* Document Vault (Functional UI) */}
-          <div className="space-y-4 pt-4 border-t border-white/5">
-            <div className="flex justify-between items-center">
-              <h3 className="font-bold text-xl flex items-center gap-2">
-                <Upload className="w-5 h-5 text-purple-400" /> Document Vault
+          {/* Smart Modules Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-white/5">
+            {/* Interview Prep Module */}
+            <div className="glass p-5 rounded-xl border border-white/5 bg-gradient-to-br from-purple-500/10 to-transparent hover:border-purple-500/30 transition-all group">
+              <div className="flex justify-between items-start mb-4">
+                <div className="p-2 bg-purple-500/20 rounded-lg text-purple-400">
+                  <MessageSquare className="w-5 h-5" />
+                </div>
+                <span className="text-xs font-bold text-purple-400 uppercase tracking-wider bg-purple-500/10 px-2 py-1 rounded">
+                  New
+                </span>
+              </div>
+              <h3 className="text-lg font-bold text-white mb-1">
+                Mock Interview
               </h3>
-              <span className="text-xs text-gray-400">
-                {documents.length}/5 Files
-              </span>
+              <p className="text-sm text-gray-400 mb-4">
+                Practice university-specific questions with AI feedback.
+              </p>
+              <button
+                onClick={() => setShowInterviewModal(true)}
+                className="w-full py-2 rounded-lg bg-purple-500 text-white font-bold text-sm hover:bg-purple-600 shadow-lg shadow-purple-500/20 transition-all flex items-center justify-center gap-2"
+              >
+                Start Session{" "}
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Upload Input */}
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-white/10 rounded-xl p-6 flex flex-col items-center justify-center text-center hover:border-purple-500 transition-colors cursor-pointer group bg-navy-900/30 h-[100px]"
-              >
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileUpload}
-                  accept=".pdf"
-                  className="hidden"
-                />
-                <div className="flex items-center gap-2">
-                  <Upload className="w-5 h-5 text-gray-400 group-hover:text-purple-400" />
-                  <span className="text-sm font-bold text-gray-300 group-hover:text-white">
-                    Upload PDF
-                  </span>
+            {/* Profile Health & App Status */}
+            <div className="glass p-5 rounded-xl border border-white/5 hover:border-teal-500/30 transition-all">
+              <div className="flex justify-between items-start mb-4">
+                <div className="p-2 bg-teal-500/20 rounded-lg text-teal-400">
+                  <CheckCircle2 className="w-5 h-5" />
                 </div>
               </div>
-
-              {/* Document List */}
-              {documents.map((doc) => (
-                <div
-                  key={doc.id}
-                  className="glass p-3 rounded-xl border border-white/5 flex items-center gap-3 relative group"
-                >
-                  <div className="p-2 bg-red-500/10 rounded-lg shrink-0">
-                    <FileText className="w-5 h-5 text-red-400" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold truncate">{doc.name}</p>
-                    <p className="text-[10px] text-gray-400">{doc.date}</p>
-                  </div>
-                  <button
-                    onClick={() => removeDocument(doc.id)}
-                    className="ml-auto p-1.5 hover:bg-red-500/20 hover:text-red-400 text-gray-500 rounded transition-colors"
+              <h3 className="text-lg font-bold text-white mb-2">
+                Ready to Submit?
+              </h3>
+              <div className="space-y-2 mb-4">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-400">Tasks Completed</span>
+                  <span
+                    className={`font-bold ${progress === 100 ? "text-green-400" : "text-gray-200"}`}
                   >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                    {progress}%
+                  </span>
                 </div>
-              ))}
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-400">Documents</span>
+                  <Link
+                    href="/dashboard/profile"
+                    className="text-teal-400 hover:underline flex items-center gap-1"
+                  >
+                    Manage in Profile <ArrowRight className="w-3 h-3" />
+                  </Link>
+                </div>
+              </div>
+              <button
+                onClick={handleSubmitApplication}
+                disabled={progress < 100 && !hasSubmitted}
+                className={`w-full py-2 rounded-lg font-bold text-sm transition-all relative overflow-hidden group ${hasSubmitted ? "bg-green-500 text-white" : "bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:shadow-lg hover:shadow-green-500/20"}`}
+              >
+                <span className="relative z-10 flex items-center justify-center gap-2">
+                  {hasSubmitted
+                    ? "Application Submitted! 🎉"
+                    : "Finalize Application"}
+                </span>
+              </button>
             </div>
           </div>
         </div>
@@ -424,7 +493,7 @@ export default function GuidancePage() {
           {/* AI Assistant Sidebar */}
           <div className="glass p-6 rounded-2xl border border-white/5 h-fit">
             <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 bg-gradient-to-tr from-teal-400 to-teal-600 rounded-lg">
+              <div className="p-2 bg-linear-to-tr from-teal-400 to-teal-600 rounded-lg">
                 <FileText className="w-5 h-5 text-white" />
               </div>
               <h3 className="font-bold">AI Tips</h3>
@@ -508,6 +577,109 @@ export default function GuidancePage() {
         </div>
       </div>
 
+      {/* Mock Interview Modal */}
+      <AnimatePresence>
+        {showInterviewModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-navy-900 border border-white/10 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              <div className="flex justify-between items-center p-6 border-b border-white/10 bg-navy-800/50">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-500/20 rounded-lg">
+                    <MessageSquare className="w-5 h-5 text-purple-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-white">
+                      Mock Interview
+                    </h2>
+                    <p className="text-xs text-gray-400">
+                      AI-Powered Session for {university?.name}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowInterviewModal(false)}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
+
+              <div className="p-6 overflow-y-auto space-y-6 custom-scrollbar flex-1">
+                {/* Question Card */}
+                <div className="bg-navy-800 p-5 rounded-xl border border-white/5">
+                  <h3 className="text-xs font-bold text-gray-400 uppercase mb-2">
+                    Interviewer Has Asked:
+                  </h3>
+                  {interviewLoading && !interviewQuestion ? (
+                    <div className="animate-pulse h-6 bg-white/5 rounded w-3/4"></div>
+                  ) : (
+                    <p className="text-lg font-bold text-white italic">
+                      "{interviewQuestion}"
+                    </p>
+                  )}
+                </div>
+
+                {!interviewFeedback ? (
+                  <div className="space-y-4">
+                    <label className="block text-sm font-medium text-gray-300">
+                      Your Answer (Type or Transcribe)
+                    </label>
+                    <textarea
+                      className="w-full h-32 bg-black/20 border border-white/10 rounded-xl p-4 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 resize-none"
+                      placeholder="I believe I am a good fit because..."
+                      value={interviewAnswer}
+                      onChange={(e) => setInterviewAnswer(e.target.value)}
+                    />
+                  </div>
+                ) : (
+                  <div className="bg-green-500/10 border border-green-500/20 p-5 rounded-xl space-y-3">
+                    <div className="flex items-center gap-2 text-green-400 font-bold">
+                      <Sparkles className="w-4 h-4" /> Feedback
+                    </div>
+                    <div className="prose prose-invert prose-sm text-gray-300">
+                      <ReactMarkdown>{interviewFeedback}</ReactMarkdown>
+                    </div>
+                    <button
+                      onClick={handleStartInterview}
+                      className="text-sm text-green-400 hover:text-white underline mt-2"
+                    >
+                      Next Question
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {!interviewFeedback && (
+                <div className="p-6 border-t border-white/10 bg-navy-800/50 flex justify-end gap-3">
+                  <button
+                    onClick={handleStartInterview}
+                    className="px-4 py-2 text-gray-400 hover:text-white text-sm"
+                  >
+                    Skip
+                  </button>
+                  <button
+                    onClick={handleInterviewSubmit}
+                    disabled={!interviewAnswer || interviewLoading}
+                    className="px-6 py-2 rounded-lg bg-purple-500 text-white font-bold text-sm hover:bg-purple-600 disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {interviewLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      "Submit Answer"
+                    )}
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* AI Outline Modal */}
       <AnimatePresence>
         {showOutlineModal && (
@@ -520,7 +692,7 @@ export default function GuidancePage() {
             >
               <div className="flex justify-between items-center p-6 border-b border-white/10 bg-navy-800/50">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-gradient-to-tr from-teal-400 to-teal-600 rounded-lg">
+                  <div className="p-2 bg-linear-to-tr from-teal-400 to-teal-600 rounded-lg">
                     <FileText className="w-5 h-5 text-white" />
                   </div>
                   <div>
@@ -590,7 +762,7 @@ export default function GuidancePage() {
             >
               <div className="flex justify-between items-center p-6 border-b border-white/10 bg-navy-800/50">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-gradient-to-tr from-teal-400 to-teal-600 rounded-lg">
+                  <div className="p-2 bg-linear-to-tr from-teal-400 to-teal-600 rounded-lg">
                     <Sparkles className="w-5 h-5 text-white" />
                   </div>
                   <div>
@@ -609,14 +781,14 @@ export default function GuidancePage() {
               </div>
 
               <div className="p-6 overflow-y-auto space-y-6 custom-scrollbar flex-1">
-                {!reviewFeedback ? (
+                {!reviewFeedback && !aoVerdict ? (
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">
                         Paste your draft (Essay, SOP, or Resume text)
                       </label>
                       <textarea
-                        className="w-full h-64 bg-navy-800 border border-white/10 rounded-xl p-4 text-gray-300 focus:outline-none focus:ring-2 focus:ring-teal-500/50 resize-none"
+                        className="w-full h-64 bg-navy-800 border border-white/10 rounded-xl p-4 text-gray-300 focus:outline-none focus:ring-2 focus:ring-teal-500/50 resize-none font-mono text-sm leading-relaxed"
                         placeholder="Paste your content here..."
                         value={reviewText}
                         onChange={(e) => setReviewText(e.target.value)}
@@ -624,21 +796,89 @@ export default function GuidancePage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    <div className="bg-navy-800 border border-white/10 rounded-xl p-4">
-                      <h3 className="font-bold text-teal-400 mb-2 flex items-center gap-2">
-                        <MessageSquare className="w-4 h-4" /> AI Feedback
-                      </h3>
-                      <div className="prose prose-invert prose-sm max-w-none text-gray-300">
-                        <ReactMarkdown>{reviewFeedback}</ReactMarkdown>
+                  <div className="space-y-6">
+                    {/* AO Verdict Card */}
+                    {aoVerdict && (
+                      <div className="bg-navy-800 border-2 border-white/10 rounded-xl p-6 relative overflow-hidden">
+                        <div
+                          className={`absolute top-0 left-0 w-full h-1 ${
+                            aoVerdict.decision === "ACCEPTED"
+                              ? "bg-green-500"
+                              : aoVerdict.decision === "WAITLISTED"
+                                ? "bg-yellow-500"
+                                : "bg-red-500"
+                          }`}
+                        />
+
+                        <div className="flex justify-between items-start mb-4">
+                          <div>
+                            <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">
+                              Admissions Verdict
+                            </div>
+                            <div
+                              className={`text-4xl font-black tracking-tighter ${
+                                aoVerdict.decision === "ACCEPTED"
+                                  ? "text-green-500"
+                                  : aoVerdict.decision === "WAITLISTED"
+                                    ? "text-yellow-500"
+                                    : "text-red-500"
+                              }`}
+                            >
+                              {aoVerdict.decision}
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-3xl font-bold text-white">
+                              {aoVerdict.score}
+                              <span className="text-lg text-gray-500">
+                                /100
+                              </span>
+                            </div>
+                            <div className="text-[10px] text-gray-400 uppercase">
+                              Impact Score
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-black/20 p-4 rounded-lg border border-white/5 mb-4">
+                          <div className="text-sm font-medium text-gray-300 italic">
+                            "{aoVerdict.oneLiner}"
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="text-xs font-bold text-gray-400 uppercase">
+                            Officer's Notes
+                          </div>
+                          <div className="prose prose-invert prose-sm text-gray-300">
+                            <ReactMarkdown>{aoVerdict.feedback}</ReactMarkdown>
+                          </div>
+                        </div>
                       </div>
+                    )}
+
+                    {!aoVerdict && reviewFeedback && (
+                      <div className="bg-navy-800 border border-white/10 rounded-xl p-4">
+                        <h3 className="font-bold text-teal-400 mb-2 flex items-center gap-2">
+                          <MessageSquare className="w-4 h-4" /> AI Feedback
+                        </h3>
+                        <div className="prose prose-invert prose-sm max-w-none text-gray-300">
+                          <ReactMarkdown>{reviewFeedback}</ReactMarkdown>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex justify-center">
+                      <button
+                        onClick={() => {
+                          setReviewFeedback("");
+                          setAoVerdict(null);
+                        }}
+                        className="text-sm text-gray-400 hover:text-white underline hover:no-underline"
+                      >
+                        Review another draft
+                      </button>
                     </div>
-                    <button
-                      onClick={() => setReviewFeedback("")}
-                      className="text-sm text-gray-400 hover:text-white underline"
-                    >
-                      Review another draft
-                    </button>
                   </div>
                 )}
               </div>
