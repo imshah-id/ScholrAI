@@ -50,10 +50,8 @@ function LoginForm() {
         throw new Error(data.error || "Login failed");
       }
 
-      showAlert("Login successful! Redirecting...", "success");
-      setTimeout(() => {
-        router.push("/dashboard");
-      }, 1000);
+      showAlert("Login successful!", "success");
+      router.push("/dashboard");
     } catch (err: any) {
       showAlert(err.message || "Invalid credentials", "error");
       setLoading(false);
@@ -71,7 +69,7 @@ function LoginForm() {
         transition={{ duration: 0.3 }}
         className="w-full bg-navy-900/60 backdrop-blur-xl border border-white/10 p-8 md:p-10 rounded-3xl shadow-2xl relative overflow-hidden"
       >
-        <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-linear-to-br from-white/5 to-transparent pointer-events-none" />
 
         <div className="mb-8 text-center space-y-2 relative z-10">
           <h1 className="text-3xl font-bold text-white tracking-tight">

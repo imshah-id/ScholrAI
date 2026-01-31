@@ -58,11 +58,8 @@ export default function SignupPage() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Signup failed");
 
-        showAlert("Account created successfully! Redirecting...", "success");
-
-        setTimeout(() => {
-          router.push("/onboarding");
-        }, 1500);
+        showAlert("Account created successfully!", "success");
+        router.push("/onboarding");
       } else {
         // If not JSON, it's likely a server error page
         const text = await res.text();
@@ -97,7 +94,7 @@ export default function SignupPage() {
 
         {/* Glass Container for Inputs */}
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-3xl shadow-2xl relative overflow-hidden group">
-          <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+          <div className="absolute inset-0 bg-linear-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
           <div className="space-y-5 relative z-10">
             <div className="relative group/input">
