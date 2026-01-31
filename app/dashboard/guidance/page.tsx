@@ -72,6 +72,7 @@ export default function GuidancePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: `Generate a tough, university-specific interview question for ${university?.name || "a top university"}. Return ONLY the question text.`,
+          stream: false,
         }),
       });
       const data = await res.json();
@@ -91,6 +92,7 @@ export default function GuidancePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: `I was asked "${interviewQuestion}" for an interview at ${university?.name}. My answer was "${interviewAnswer}". Rate this answer 1-10 and give 2 tips to improve.`,
+          stream: false,
         }),
       });
       const data = await res.json();
@@ -148,6 +150,7 @@ export default function GuidancePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: `Give me 3 short, specific, high-impact tips to improve my admission chances for ${university.name} given my profile. Return ONLY the 3 tips as a list, no intro/outro.`,
+          stream: false,
         }),
       });
       if (res.ok) {
@@ -252,6 +255,7 @@ export default function GuidancePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: `Generate a structured essay outline for a Statement of Purpose for ${university.name}. Focus on key sections to include.`,
+          stream: false,
         }),
       });
 
@@ -301,7 +305,7 @@ export default function GuidancePage() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: prompt }),
+        body: JSON.stringify({ message: prompt, stream: false }),
       });
 
       if (res.ok) {

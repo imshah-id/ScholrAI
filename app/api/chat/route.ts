@@ -54,7 +54,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { message, messages = [] } = await req.json();
+    const {
+      message,
+      messages = [],
+      stream: shouldStream = true,
+    } = await req.json();
 
     // Context fetching: Profile + Shortlist
     const profile = await prisma.profile.findUnique({
@@ -106,6 +110,16 @@ export async function POST(req: Request) {
     console.log("Using model: Qwen/Qwen2.5-72B-Instruct (or 7B fallback)");
 
     console.log("Using model: Qwen/Qwen2.5-72B-Instruct (Streaming)");
+
+    if (!shouldStream) {
+      const response = await hf.chatCompletion({
+        model: "Qwen/Qwen2.5-72B-Instruct",
+        messages: fullMessages,
+        max_tokens: 500,
+        temperature: 0.7,
+      });
+      return NextResponse.json({ reply: response.choices[0].message.content });
+    }
 
     const stream = hf.chatCompletionStream({
       model: "Qwen/Qwen2.5-72B-Instruct",
