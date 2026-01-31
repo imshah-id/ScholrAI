@@ -18,8 +18,9 @@ const DiscoveryFilters = dynamic(
 );
 
 import { fetchMoreUniversities } from "./actions";
-import { m, AnimatePresence } from "framer-motion";
+import { m } from "framer-motion";
 import { triggerConfetti } from "@/lib/confetti";
+import { useDiscovery } from "@/components/dashboard/DiscoveryContext";
 
 interface DiscoveryClientProps {
   initialUniversities: any[];
@@ -31,20 +32,35 @@ export default function DiscoveryClient({
   const router = useRouter();
   const { showAlert } = useAlert();
   const { updateCount } = useShortlist();
-  const [searchTerm, setSearchTerm] = useState("");
 
-  const [universities, setUniversities] = useState<any[]>(initialUniversities);
-  const [externalResults, setExternalResults] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false); // Initial loading is done handled by SSR/Suspense
+  // Use Global Discovery Context
+  const {
+    universities,
+    setUniversities,
+    externalResults,
+    setExternalResults,
+    searchTerm,
+    setSearchTerm,
+    filters,
+    setFilters,
+    page,
+    setPage,
+    hasMore,
+    setHasMore,
+  } = useDiscovery();
 
+  const [loading, setLoading] = useState(false);
   const [externalLoading, setExternalLoading] = useState(false);
   const [shortlisted, setShortlisted] = useState<Set<string>>(new Set());
   const [loadingShortlist, setLoadingShortlist] = useState<string | null>(null);
-
-  // Pagination State
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+
+  // Sync initialUniversities to context ONLY if context is empty
+  useEffect(() => {
+    if (universities.length === 0 && initialUniversities.length > 0) {
+      setUniversities(initialUniversities);
+    }
+  }, [initialUniversities, universities.length, setUniversities]);
 
   const handleLoadMore = async () => {
     setLoadingMore(true);
@@ -54,7 +70,7 @@ export default function DiscoveryClient({
       if (newUnis.length === 0) {
         setHasMore(false);
       } else {
-        setUniversities((prev) => [...prev, ...newUnis]);
+        setUniversities([...universities, ...newUnis]);
         setPage(nextPage);
       }
     } catch (e) {
@@ -70,14 +86,8 @@ export default function DiscoveryClient({
     shortlistedRef.current = shortlisted;
   }, [shortlisted]);
 
-  // Filter State
+  // Filter State (Now in Context)
   const [showFilters, setShowFilters] = useState(false);
-  const [filters, setFilters] = useState({
-    minMatch: 0,
-    maxFees: 100000,
-    maxRank: 500,
-    country: "All",
-  });
 
   // Helper: Parse Fees to Number
   const parseFees = (feeStr: string | undefined): number => {
@@ -97,19 +107,19 @@ export default function DiscoveryClient({
   );
 
   useEffect(() => {
-    // fetchUniversities(); // Handled by SSR
+    // fetchUniversities(); // Handled by SSR/Context Sync
     fetchShortlist();
   }, []);
 
   // Debounced External Search
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (searchTerm.length >= 3) {
+      if (searchTerm.length >= 3 && externalResults.length === 0) {
         searchExternal();
-      } else {
+      } else if (searchTerm.length < 3) {
         setExternalResults([]);
       }
-    }, 800);
+    }, 300);
     return () => clearTimeout(timer);
   }, [searchTerm]);
 

@@ -33,7 +33,6 @@ export const UniversityCard = memo(function UniversityCard({
       layoutId={uni.id}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.1 }}
       className={`glass rounded-2xl border overflow-hidden hover:border-primary/50 transition-all group relative hover:shadow-2xl hover:shadow-primary/5 hover:scale-[1.02] flex flex-col h-full ${
         uni.isExternal ? "border-blue-500/20 bg-blue-900/10" : "border-white/5"
       }`}
