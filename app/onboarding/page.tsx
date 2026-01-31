@@ -216,7 +216,11 @@ export default function OnboardingPage() {
           if (!recognition.lang.includes("-")) recognition.lang = "en-IN"; // Default to Indian English if undecided
           recognition.interimResults = false;
 
-          recognition.onstart = () => setIsListening(true);
+          recognition.onstart = () => {
+            setIsListening(true);
+            setAiMessage(""); // Clear previous errors/prompts
+            setTranscript(""); // Clear previous transcript
+          };
 
           // CRITICAL: Handle onend logic carefully
           recognition.onend = () => {
@@ -226,10 +230,16 @@ export default function OnboardingPage() {
           };
 
           recognition.onerror = (event: any) => {
-            if (event.error === "no-speech" || event.error === "aborted") {
-              // Expected behavior:
-              // 'no-speech' = user silent
-              // 'aborted' = we manually stopped/restarted it
+            if (event.error === "no-speech") {
+              // Specific feedback for silence
+              setIsListening(false);
+              setAiMessage(
+                "I didn't hear anything. Please tap the mic to try again.",
+              );
+              return;
+            }
+            if (event.error === "aborted") {
+              // Specific feedback for manual stop
               setIsListening(false);
               return;
             }
@@ -366,16 +376,39 @@ export default function OnboardingPage() {
         lower.includes("bachelor") ||
         lower.includes("undergrad") ||
         lower.includes("ug") ||
-        lower.includes("bach")
+        lower.includes("bach") ||
+        lower.includes("b.s") ||
+        lower.includes("bs") ||
+        lower.includes("b.a") ||
+        lower.includes("ba") ||
+        lower.includes("btech") ||
+        lower.includes("college")
       )
         degree = "Bachelors";
-      else if (lower.includes("phd") || lower.includes("doctorate"))
+      else if (
+        lower.includes("phd") ||
+        lower.includes("doctorate") ||
+        lower.includes("doctor") ||
+        lower.includes("research") ||
+        lower.includes("p.h.d")
+      )
         degree = "PhD";
-      else if (lower.includes("mba")) degree = "MBA";
+      else if (
+        lower.includes("mba") ||
+        lower.includes("business") ||
+        lower.includes("management") ||
+        lower.includes("m.b.a")
+      )
+        degree = "MBA";
       else if (
         lower.includes("master") ||
         lower.includes("ms") ||
-        lower.includes("m.s")
+        lower.includes("m.s") ||
+        lower.includes("ma") ||
+        lower.includes("m.a") ||
+        lower.includes("grad") ||
+        lower.includes("postgrad") ||
+        lower.includes("graduate")
       )
         degree = "Masters";
 
@@ -639,7 +672,25 @@ export default function OnboardingPage() {
 
     // --- STEP 3: TEST SCORE ---
     else if (currentStep === 3) {
-      const numbers = text.match(/[\d\.]+/g);
+      // Pre-process text to handle "seven point five"
+      let cleanText = text.toLowerCase().replace(/point/g, ".");
+      const numberWords: Record<string, string> = {
+        one: "1",
+        two: "2",
+        three: "3",
+        four: "4",
+        five: "5",
+        six: "6",
+        seven: "7",
+        eight: "8",
+        nine: "9",
+        zero: "0",
+      };
+      Object.entries(numberWords).forEach(([word, digit]) => {
+        cleanText = cleanText.replace(new RegExp(`\\b${word}\\b`, "g"), digit);
+      });
+
+      const numbers = cleanText.match(/[\d\.]+/g);
       const score = numbers ? numbers[0] : "";
 
       if (!score) {
@@ -672,38 +723,45 @@ export default function OnboardingPage() {
 
     // --- STEP 4: COUNTRY (ADD MODE) ---
     else if (currentStep === 4) {
-      // We parse ONE country at a time here to avoid confusion
+      const lower = text.toLowerCase();
       let newCountry = "";
-      if (lower.includes("canada")) newCountry = "Canada";
-      else if (
-        lower.includes("usa") ||
-        lower.includes("america") ||
-        lower.includes("states") ||
-        lower.includes("us")
-      )
-        newCountry = "USA";
-      else if (
-        lower.includes("uk") ||
-        lower.includes("kingdom") ||
-        lower.includes("england")
-      )
-        newCountry = "UK";
-      else if (lower.includes("germany") || lower.includes("deutschland"))
-        newCountry = "Germany";
-      else if (
-        lower.includes("switzerland") ||
-        lower.includes("swiss") ||
-        lower.includes("seizer")
-      )
-        newCountry = "Switzerland";
-      else if (lower.includes("ireland")) newCountry = "Ireland";
-      else if (lower.includes("netherlands") || lower.includes("dutch"))
-        newCountry = "Netherlands";
-      else if (lower.includes("france")) newCountry = "France";
-      else if (lower.includes("australia")) newCountry = "Australia";
-      else if (lower.includes("zealand") || lower.includes("nz"))
-        newCountry = "New Zealand";
-      else if (lower.includes("singapore")) newCountry = "Singapore";
+
+      // Comprehensive mapping for countries
+      const COUNTRY_ALIASES: Record<string, string[]> = {
+        USA: ["usa", "america", "united states", "us", "states"],
+        UK: ["uk", "united kingdom", "england", "britain", "great britain"],
+        Canada: ["canada", "canadian"],
+        Australia: ["australia", "aussie"],
+        Germany: ["germany", "deutschland"],
+        France: ["france"],
+        Ireland: ["ireland"],
+        "New Zealand": ["new zealand", "nz", "kiwi"],
+        Singapore: ["singapore"],
+        Switzerland: ["switzerland", "swiss"],
+        Netherlands: ["netherlands", "dutch", "holland"],
+        Italy: ["italy"],
+        Spain: ["spain"],
+        Sweden: ["sweden"],
+        Norway: ["norway"],
+        Denmark: ["denmark"],
+        Finland: ["finland"],
+        Japan: ["japan"],
+        "South Korea": ["south korea", "korea"],
+        China: ["china"],
+        "Hong Kong": ["hong kong"],
+        Dubai: ["dubai", "uae", "emirates"],
+      };
+
+      // Check aliases first
+      for (const [country, aliases] of Object.entries(COUNTRY_ALIASES)) {
+        if (
+          lower.includes(country.toLowerCase()) ||
+          aliases.some((alias) => lower.includes(alias))
+        ) {
+          newCountry = country;
+          break;
+        }
+      }
 
       if (!newCountry) {
         // Maybe they said "No more" or "That's it" if looping?
@@ -731,7 +789,7 @@ export default function OnboardingPage() {
       if (!currentList.includes(newCountry)) {
         currentList.push(newCountry);
       }
-      // If multiple mentioned in one go, could split. For now simple.
+
       updateStore({ preferredCountries: currentList });
 
       // Removed "Add another" loop as requested. Proceed to Budget.
@@ -767,16 +825,32 @@ export default function OnboardingPage() {
         else budget = "60k+";
       } else {
         // Fallback keywords
-        if (lower.includes("low") || lower.includes("20")) budget = "< 20k";
+        if (
+          lower.includes("low") ||
+          lower.includes("20") ||
+          lower.includes("twenty")
+        )
+          budget = "< 20k";
         else if (
           lower.includes("30") ||
+          lower.includes("thirty") ||
           lower.includes("40") ||
+          lower.includes("forty") ||
           lower.includes("medium")
         )
           budget = "20k-40k";
-        else if (lower.includes("50") || lower.includes("60"))
+        else if (
+          lower.includes("50") ||
+          lower.includes("fifty") ||
+          lower.includes("60") ||
+          lower.includes("sixty")
+        )
           budget = "40k-60k";
-        else if (lower.includes("high") || lower.includes("80"))
+        else if (
+          lower.includes("high") ||
+          lower.includes("80") ||
+          lower.includes("eighty")
+        )
           budget = "60k+";
       }
 
@@ -796,7 +870,25 @@ export default function OnboardingPage() {
 
     // --- STEP 6: GPA VALUE ---
     else if (currentStep === 6) {
-      const numbers = text.match(/[\d\.]+/g);
+      // Pre-process text
+      let cleanText = text.toLowerCase().replace(/point/g, ".");
+      const numberWords: Record<string, string> = {
+        one: "1",
+        two: "2",
+        three: "3",
+        four: "4",
+        five: "5",
+        six: "6",
+        seven: "7",
+        eight: "8",
+        nine: "9",
+        zero: "0",
+      };
+      Object.entries(numberWords).forEach(([word, digit]) => {
+        cleanText = cleanText.replace(new RegExp(`\\b${word}\\b`, "g"), digit);
+      });
+
+      const numbers = cleanText.match(/[\d\.]+/g);
       let gpa = numbers ? numbers[0] : "";
 
       if (!gpa) {
