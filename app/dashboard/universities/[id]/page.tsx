@@ -13,7 +13,6 @@ import {
   Users,
   Award,
   BookOpen,
-  Loader2,
 } from "lucide-react";
 import {
   containerStagger,
@@ -21,6 +20,7 @@ import {
   slideInLeft,
   slideInRight,
 } from "@/lib/animations";
+import UniversityDetailsSkeleton from "@/components/dashboard/UniversityDetailsSkeleton";
 
 export default function UniversityDetailsPage() {
   const { id } = useParams();
@@ -153,11 +153,7 @@ export default function UniversityDetailsPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh] text-gray-400">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
+    return <UniversityDetailsSkeleton />;
   }
 
   if (!uni) {
@@ -192,9 +188,9 @@ export default function UniversityDetailsPage() {
         animate={{ opacity: 1, y: 0 }}
         className="glass rounded-3xl border border-white/10 overflow-hidden relative shadow-2xl shadow-black/20"
       >
-        <div className="h-64 bg-gradient-to-br from-navy-800 via-primary/10 to-navy-900 relative">
+        <div className="h-64 bg-linear-to-br from-navy-800 via-primary/10 to-navy-900 relative">
           <div className="absolute inset-0 bg-[url('/noise.png')] opacity-20 mix-blend-overlay" />
-          <div className="absolute inset-0 bg-gradient-to-t from-navy-900 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-linear-to-t from-navy-900 via-transparent to-transparent" />
 
           {/* Global Rank Badge */}
           <div className="absolute top-6 right-6 flex items-center gap-2">
@@ -206,8 +202,8 @@ export default function UniversityDetailsPage() {
             </div>
           </div>
 
-          <div className="absolute -bottom-0 left-0 right-0 p-8 flex flex-col md:flex-row items-end gap-6 z-10">
-            <div className="w-32 h-32 rounded-2xl bg-gradient-to-br from-navy-800 to-black border-4 border-navy-900 shadow-2xl flex items-center justify-center -mb-8 relative z-20">
+          <div className="absolute bottom-0 left-0 right-0 p-8 flex flex-col md:flex-row items-end gap-6 z-10">
+            <div className="w-32 h-32 rounded-2xl bg-linear-to-br from-navy-800 to-black border-4 border-navy-900 shadow-2xl flex items-center justify-center mb-0 relative z-20">
               <span className="text-5xl font-bold text-white opacity-90">
                 {uni.name.charAt(0)}
               </span>
@@ -273,7 +269,7 @@ export default function UniversityDetailsPage() {
           {/* AI Match Card */}
           <motion.div
             variants={slideInLeft}
-            className="glass p-8 rounded-3xl border border-white/5 bg-gradient-to-br from-purple-900/20 to-navy-900/50 overflow-hidden relative"
+            className="glass p-8 rounded-3xl border border-white/5 bg-linear-to-br from-purple-900/20 to-navy-900/50 overflow-hidden relative"
           >
             {/* Decorative Glow */}
             <div className="absolute -top-12 -right-12 w-48 h-48 bg-purple-500/20 blur-[60px] rounded-full" />
@@ -284,7 +280,7 @@ export default function UniversityDetailsPage() {
             </h2>
 
             <div className="flex items-center gap-8 relative z-10">
-              <div className="relative w-28 h-28 flex-shrink-0">
+              <div className="relative w-28 h-28 shrink-0">
                 <svg className="w-full h-full -rotate-90">
                   <circle
                     cx="56"
