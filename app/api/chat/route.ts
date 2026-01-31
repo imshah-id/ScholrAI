@@ -31,6 +31,9 @@ AVAILABLE TOOLS:
   - Args: "universityName" (string)
 
 GUIDELINES:
+- Be concise, direct, and conversational.
+- DO NOT repeat generic greetings like "Hello" or "Hi" in every response.
+- Use the student's name naturally and sparsely; do not over-address them.
 - If NO tool is needed, simply reply with a helpful text response.
 - Do NOT output the tool JSON if you are just chatting.
 - If the tool succeeds, subsequent messages will inform you.
@@ -102,61 +105,93 @@ export async function POST(req: Request) {
 
     console.log("Using model: Qwen/Qwen2.5-72B-Instruct (or 7B fallback)");
 
-    const response = await hf.chatCompletion({
-      model: "Qwen/Qwen2.5-72B-Instruct", // Trying a strong model, can fallback to 7B if needed
+    console.log("Using model: Qwen/Qwen2.5-72B-Instruct (Streaming)");
+
+    const stream = hf.chatCompletionStream({
+      model: "Qwen/Qwen2.5-72B-Instruct",
       messages: fullMessages,
       max_tokens: 500,
       temperature: 0.7,
     });
 
-    const replyText = response.choices[0].message.content || "";
+    const encoder = new TextEncoder();
+    let isToolCall = false;
+    let buffer = "";
 
-    // Parse for JSON Tool Call
-    // Look for JSON pattern: { "tool": ... }
-    const jsonMatch = replyText.match(/\{[\s\S]*"tool"[\s\S]*\}/);
+    const customStream = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const chunk of stream) {
+            const content = chunk.choices[0]?.delta?.content || "";
+            if (!content) continue;
 
-    if (jsonMatch) {
-      try {
-        const toolCall = JSON.parse(jsonMatch[0]);
-        console.log("Tool Call Triggered:", toolCall.tool, toolCall.args);
+            // First chunk detection for Tool Call
+            if (buffer === "" && content.trim().startsWith("{")) {
+              isToolCall = true;
+            }
 
-        let toolResultText = "";
-
-        if (toolCall.tool === "add_to_shortlist") {
-          const uniName = toolCall.args.universityName;
-          const res = await addToShortlist(session.userId, uniName);
-          if (res.status === "success") {
-            toolResultText = `Successfully added ${res.university.name} to the shortlist.`;
-          } else {
-            toolResultText = `${res.university.name} is already in the shortlist.`;
+            if (isToolCall) {
+              buffer += content;
+            } else {
+              controller.enqueue(encoder.encode(content));
+            }
           }
-        } else if (toolCall.tool === "lock_university") {
-          const uniName = toolCall.args.universityName;
-          await addToShortlist(session.userId, uniName);
-          toolResultText = `I have shortlisted ${uniName} for you. Locking is a safety feature best done in the Shortlist tab.`;
+
+          if (isToolCall) {
+            // Process the buffered tool call
+            const jsonMatch = buffer.match(/\{[\s\S]*"tool"[\s\S]*\}/);
+            if (jsonMatch) {
+              try {
+                const toolCall = JSON.parse(jsonMatch[0]);
+                console.log(
+                  "Tool Call Triggered:",
+                  toolCall.tool,
+                  toolCall.args,
+                );
+                let toolResultText = "";
+
+                if (toolCall.tool === "add_to_shortlist") {
+                  const uniName = toolCall.args.universityName;
+                  const res = await addToShortlist(session.userId, uniName);
+                  toolResultText =
+                    res.status === "success"
+                      ? `Successfully added ${res.university.name} to the shortlist.`
+                      : `${res.university.name} is already in the shortlist.`;
+                } else if (toolCall.tool === "lock_university") {
+                  const uniName = toolCall.args.universityName;
+                  await addToShortlist(session.userId, uniName);
+                  toolResultText = `I have shortlisted ${uniName} for you. Locking is a safety feature best done in the Shortlist tab.`;
+                }
+
+                const finalReply =
+                  buffer.replace(jsonMatch[0], "").trim() +
+                  "\n\n" +
+                  `[System: ${toolResultText}]`;
+                controller.enqueue(encoder.encode(finalReply));
+              } catch (e) {
+                controller.enqueue(encoder.encode(buffer));
+              }
+            } else {
+              controller.enqueue(encoder.encode(buffer));
+            }
+          }
+          controller.close();
+        } catch (err) {
+          controller.error(err);
         }
+      },
+    });
 
-        // Return a follow-up response acknowledging the action
-        // In a full loop we might feed this back, but for single-turn statelessness:
-        return NextResponse.json({
-          reply:
-            replyText.replace(jsonMatch[0], "").trim() +
-            "\n\n" +
-            `[System: ${toolResultText}]`,
-        });
-      } catch (e) {
-        console.error("JSON Parse Error or Tool Error", e);
-        // If parsing fails, just return the text
-        return NextResponse.json({ reply: replyText });
-      }
-    }
-
-    return NextResponse.json({ reply: replyText });
+    return new Response(customStream, {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Transfer-Encoding": "chunked",
+      },
+    });
   } catch (error: any) {
     console.error("Chat Error:", error);
     return NextResponse.json({
-      reply:
-        "I am having trouble connecting to my new brain (Hugging Face). Please check the API Key.",
+      reply: "I am having trouble connecting to my new brain (Hugging Face).",
     });
   }
 }
