@@ -187,9 +187,17 @@ export default function DiscoveryClient({
       const currentShortlisted = shortlistedRef.current;
       const isRemoving = currentShortlisted.has(university.id);
 
+      // --- OPTIMISTIC UPDATE ---
+      setShortlisted((prev) => {
+        const newSet = new Set(prev);
+        if (isRemoving) newSet.delete(university.id);
+        else newSet.add(university.id);
+        return newSet;
+      });
+      // -------------------------
+
       try {
         const payload: any = { universityId: university.id };
-        // If external, pass the full data for creation, checking original object reference might be safer but for now relying on isExternal property
         if (university.isExternal && !isRemoving) {
           payload.universityData = university;
         }
@@ -202,38 +210,38 @@ export default function DiscoveryClient({
 
         if (res.ok) {
           updateCount();
-
-          if (isRemoving) {
-            setShortlisted((prev) => {
-              const newSet = new Set(prev);
-              newSet.delete(university.id);
-              return newSet;
-            });
-          } else {
-            setShortlisted((prev) => {
-              const newSet = new Set(prev);
-              newSet.add(university.id);
-              // SMART NUDGE Logic (using local copy of size)
-              if (newSet.size === 3 && !prev.has(university.id)) {
-                triggerConfetti();
-                // Trigger alert slightly deferred to avoid state update collision if any
-                setTimeout(() => {
-                  showAlert(
-                    "Great start! You've shortlisted 3 universities.",
-                    "success",
-                    {
-                      label: "Go to Shortlist →",
-                      onClick: () => router.push("/dashboard/shortlist"),
-                    },
-                  );
-                }, 100);
-              }
-              return newSet;
-            });
+          // Logic for confetti/nudges still needs the "confirmed" state
+          if (!isRemoving) {
+            const confirmedShortlisted = new Set(shortlistedRef.current);
+            if (confirmedShortlisted.size === 3) {
+              triggerConfetti();
+              setTimeout(() => {
+                showAlert(
+                  "Great start! You've shortlisted 3 universities.",
+                  "success",
+                  {
+                    label: "Go to Shortlist →",
+                    onClick: () => router.push("/dashboard/shortlist"),
+                  },
+                );
+              }, 100);
+            }
           }
+        } else {
+          throw new Error("Failed to sync shortlist");
         }
       } catch (error) {
         console.error("Failed to shortlist", error);
+        showAlert("Failed to update shortlist. Please try again.", "error");
+
+        // --- ROLLBACK ---
+        setShortlisted((prev) => {
+          const revertSet = new Set(prev);
+          if (isRemoving) revertSet.add(university.id);
+          else revertSet.delete(university.id);
+          return revertSet;
+        });
+        // ----------------
       } finally {
         setLoadingShortlist(null);
       }

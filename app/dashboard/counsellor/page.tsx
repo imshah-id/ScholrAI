@@ -274,31 +274,54 @@ export default function CounsellorPage() {
         }),
       });
 
-      if (res.ok) {
-        const data = await res.json();
+      if (!res.ok) throw new Error("Failed to connect to AI");
+      if (!res.body) throw new Error("No response body");
 
-        // Check if reply contains "Drafting" keywords to auto-open panel
-        if (
-          data.reply.toLowerCase().includes("draft") ||
-          data.reply.toLowerCase().includes("essay")
-        ) {
-          setDraftContent(data.reply);
-          setShowDraftingPanel(true);
-        }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let aiReply = "";
 
-        const aiMsg: Message = {
-          id: Date.now() + 1,
-          role: "ai",
-          content: data.reply,
-        };
-        const updatedMessages = [...messages, userMsg, aiMsg];
-        setMessages(updatedMessages);
+      // Add a placeholder AI message that we will populate
+      const aiMsgId = Date.now() + 1;
+      setMessages((prev) => [
+        ...prev,
+        { id: aiMsgId, role: "ai", content: "" },
+      ]);
 
-        // Persistent Save
-        saveChatToDB(updatedMessages);
+      setThinking(false); // Stop thinking spinner once stream starts
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        aiReply += chunk;
+
+        // Update the last message (the placeholder)
+        setMessages((prev) =>
+          prev.map((m) => (m.id === aiMsgId ? { ...m, content: aiReply } : m)),
+        );
       }
-    } catch (e) {
+
+      // Final check for drafting
+      if (
+        aiReply.toLowerCase().includes("draft") ||
+        aiReply.toLowerCase().includes("essay")
+      ) {
+        setDraftContent(aiReply);
+        setShowDraftingPanel(true);
+      }
+
+      // Persistent Save
+      const updatedMessages: Message[] = [
+        ...messages,
+        userMsg,
+        { id: aiMsgId, role: "ai", content: aiReply },
+      ];
+      saveChatToDB(updatedMessages);
+    } catch (e: any) {
       console.error(e);
+      showAlert(e.message || "Chat failed", "error");
     } finally {
       setLoading(false);
       setThinking(false);

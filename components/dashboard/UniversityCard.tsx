@@ -254,7 +254,7 @@ export const UniversityCard = memo(function UniversityCard({
                 {isLoadingShortlist ? (
                   <>
                     <Loader2 className="w-3 h-3 animate-spin" />
-                    {isShortlisted ? "Removing" : "Adding"}
+                    {isShortlisted ? "Adding" : "Removing"}
                   </>
                 ) : isShortlisted ? (
                   <>
