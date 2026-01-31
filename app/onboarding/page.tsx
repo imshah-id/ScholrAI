@@ -100,6 +100,55 @@ export default function OnboardingPage() {
   const router = useRouter();
   const { showAlert } = useAlert();
 
+  // Load initial data from server
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await fetch("/api/user/me");
+        if (res.ok) {
+          const profile = await res.json();
+          if (profile && !profile.error) {
+            // Parse preferredCountries if string
+            let countries = [];
+            try {
+              countries =
+                typeof profile.preferredCountries === "string"
+                  ? JSON.parse(profile.preferredCountries)
+                  : profile.preferredCountries || [];
+            } catch (e) {}
+
+            const mergedData = {
+              firstName: profile.firstName || "", // Though we don't have firstName in OnboardingData type, avoiding error
+              fullName: profile.fullName || "",
+              email: profile.email || "",
+              targetDegree: profile.targetDegree || "",
+              targetMajor: profile.targetMajor || "",
+              targetIntake: profile.targetIntake || "Fall 2026",
+              highestQualification: profile.highestQualification || "",
+              fieldOfStudy: profile.fieldOfStudy || "",
+              citizenship: profile.citizenship || "",
+              gpa: profile.gpa || "",
+              gpaScale: profile.gpaScale || "4.0",
+              englishTest: profile.englishTest || "None",
+              testScore: profile.testScore || "",
+              budget: profile.budget || "20k-40k",
+              preferredCountries: countries,
+            };
+
+            // Update refs and state
+            // If data exists, we should probably set mode to manual or attempt to resume voice?
+            // For now, just load data.
+            voiceDataRef.current = { ...voiceDataRef.current, ...mergedData };
+            setData((prev) => ({ ...prev, ...mergedData }));
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch profile", error);
+      }
+    };
+    fetchProfile();
+  }, []);
+
   // Modes: 'selection' | 'manual' | 'voice'
   const [mode, setMode] = useState<"selection" | "manual" | "voice">(
     "selection",
@@ -307,6 +356,7 @@ export default function OnboardingPage() {
     const updateStore = (updates: Partial<OnboardingData>) => {
       Object.assign(store, updates);
       setData({ ...store });
+      saveProgress(store);
     };
 
     // --- STEP 1: DEGREE ---
@@ -808,13 +858,27 @@ export default function OnboardingPage() {
     }
   };
 
+  const saveProgress = async (currentData: Partial<OnboardingData>) => {
+    try {
+      // fire and forget or await? Await is safer for sync but might lag.
+      // Since it's background save, we don't block UI but we catch errors.
+      await fetch("/api/onboarding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...currentData, isFinal: false }),
+      });
+    } catch (e) {
+      console.error("Auto-save failed", e);
+    }
+  };
+
   const submitVoiceData = async (finalData: OnboardingData) => {
     setLoading(true);
     try {
       const res = await fetch("/api/onboarding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(finalData),
+        body: JSON.stringify({ ...finalData, isFinal: true }),
       });
 
       if (!res.ok) throw new Error("Failed to save profile");
@@ -891,13 +955,15 @@ export default function OnboardingPage() {
 
     if (step < 3) {
       setStep(step + 1);
+      // Save progress on step change
+      saveProgress(data);
     } else {
       setLoading(true);
       try {
         const res = await fetch("/api/onboarding", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data),
+          body: JSON.stringify({ ...data, isFinal: true }),
         });
         if (!res.ok) throw new Error("Failed to save profile");
         router.push("/dashboard");

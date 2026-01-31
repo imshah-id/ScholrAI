@@ -23,9 +23,17 @@ export async function POST(req: Request) {
       testScore,
       budget,
       preferredCountries,
+      isFinal, // New flag
     } = body;
 
-    // Update Profile
+    // Helper to filter undefined/null values for update to avoid overwriting with empty
+    // actually, for onboarding, we generally want to overwrite if the user changed it.
+    // But if we send partial data, we need to be careful.
+    // For now, we assume the frontend sends the full state it has.
+    // The critical part is currentStage.
+
+    const stageUpdate = isFinal ? { currentStage: "DISCOVERY" } : {};
+
     // Update or Create Profile
     const updatedProfile = await prisma.profile.upsert({
       where: { userId: session.userId },
@@ -41,24 +49,28 @@ export async function POST(req: Request) {
         englishTest,
         testScore,
         budget,
-        preferredCountries: JSON.stringify(preferredCountries),
-        currentStage: "DISCOVERY",
+        preferredCountries: preferredCountries
+          ? JSON.stringify(preferredCountries)
+          : undefined,
+        ...stageUpdate,
       },
       create: {
         userId: session.userId,
-        targetDegree,
-        targetMajor,
-        targetIntake,
-        highestQualification,
-        fieldOfStudy,
-        citizenship,
-        gpa,
+        targetDegree: targetDegree || "",
+        targetMajor: targetMajor || "",
+        targetIntake: targetIntake || "",
+        highestQualification: highestQualification || "",
+        fieldOfStudy: fieldOfStudy || "",
+        citizenship: citizenship || "",
+        gpa: gpa || "",
         gpaScale: gpaScale || "4.0",
-        englishTest,
-        testScore,
-        budget,
-        preferredCountries: JSON.stringify(preferredCountries),
-        currentStage: "DISCOVERY",
+        englishTest: englishTest || "None",
+        testScore: testScore || "",
+        budget: budget || "",
+        preferredCountries: preferredCountries
+          ? JSON.stringify(preferredCountries)
+          : "[]",
+        currentStage: isFinal ? "DISCOVERY" : "PROFILE",
         readinessScore: 30,
       },
     });

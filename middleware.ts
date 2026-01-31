@@ -11,6 +11,11 @@ export function middleware(request: NextRequest) {
     (p) => path === p || path.startsWith("/api/auth"),
   );
 
+  // If user is already logged in and tries to access login or signup, redirect to dashboard
+  if (token && (path === "/login" || path === "/signup")) {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
+
   // If accessing protected route without token, redirect to login
   if (!isPublicPath && !token) {
     return NextResponse.redirect(new URL("/login", request.url));
