@@ -9,31 +9,43 @@ import {
 
 const getPersonaInstruction = (persona: string) => {
   const baseTools = `
-TOOL USAGE FORMAT:
-To use a tool, you MUST output a valid JSON object in the following format and NOTHING else:
+AUTOMATIC SHORTLISTING:
+When a user explicitly asks to shortlist/add a university, you MUST use the tool to add it immediately.
+
+Examples of when to AUTO-SHORTLIST:
+- "Shortlist MIT" → Use tool to add MIT
+- "Add Stanford to my list" → Use tool to add Stanford
+- "I want to apply to Harvard" → Use tool to add Harvard
+- "Save University of Toronto" → Use tool to add University of Toronto
+
+TOOL USAGE - YOU MUST USE THIS:
+When user requests to shortlist/add a university, output ONLY this JSON (nothing else):
 {
-  "tool": "tool_name",
+  "tool": "add_to_shortlist",
   "args": {
-    "key": "value"
+    "universityName": "Full University Name"
   }
 }
 
-AVAILABLE TOOLS:
-- Tool Name: "add_to_shortlist"
-  - Description: Adds a university to the user's shortlist. Use when user says "Add [University]" or "I like [University]".
-  - Args: "universityName" (string)
+IMPORTANT:
+- Use EXACT university names from the database
+- When you use the tool, output ONLY the JSON, nothing else
+- The system will confirm the addition and you'll see it in the next message
+- After tool succeeds, respond naturally in your next message
 
+When recommending universities (not adding them), simply mention them naturally in your response without special formatting.
+
+OTHER TOOLS:
 - Tool Name: "lock_university"
-  - Description: Locking a university triggers advanced tasks. Use ONLY if user explicitly wants to "Lock" or "Finalize".
+  - Description: Use ONLY if user explicitly wants to "Lock" or "Finalize" a university.
   - Args: "universityName" (string)
 
 GUIDELINES:
-- Be concise, direct, and conversational.
-- DO NOT repeat generic greetings like "Hello" or "Hi" in every response.
-- Use the student's name naturally and sparsely; do not over-address them.
-- If NO tool is needed, simply reply with a helpful text response.
-- Do NOT output the tool JSON if you are just chatting.
-- If the tool succeeds, subsequent messages will inform you.
+- If user says "shortlist/add/save [University]" → USE THE TOOL immediately
+- When suggesting universities, just mention them naturally in conversation
+- Be concise, direct, and conversational
+- DO NOT repeat generic greetings in every response
+- After using a tool, wait for system confirmation before responding
 `;
 
   const personas: Record<string, string> = {
@@ -223,18 +235,18 @@ export async function POST(req: Request) {
                   const res = await addToShortlist(session.userId, uniName);
                   toolResultText =
                     res.status === "success"
-                      ? `Successfully added ${res.university.name} to the shortlist.`
-                      : `${res.university.name} is already in the shortlist.`;
+                      ? `✅ Added ${res.university.name} to your shortlist!`
+                      : `${res.university.name} is already in your shortlist.`;
                 } else if (toolCall.tool === "lock_university") {
                   const uniName = toolCall.args.universityName;
                   await addToShortlist(session.userId, uniName);
-                  toolResultText = `I have shortlisted ${uniName} for you. Locking is a safety feature best done in the Shortlist tab.`;
+                  toolResultText = `✅ Shortlisted ${uniName}. You can lock it from the Shortlist tab.`;
                 }
 
                 const finalReply =
                   buffer.replace(jsonMatch[0], "").trim() +
                   "\n\n" +
-                  `[System: ${toolResultText}]`;
+                  toolResultText;
                 controller.enqueue(encoder.encode(finalReply));
               } catch (e) {
                 controller.enqueue(encoder.encode(buffer));

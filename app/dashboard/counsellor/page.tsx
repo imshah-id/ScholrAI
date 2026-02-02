@@ -561,70 +561,8 @@ export default function CounsellorPage() {
                         ),
                       }}
                     >
-                      {msg.content
-                        .replace(/\[SHORTLIST: (.*?)\]/g, "")
-                        .replace(/\[LOCK: (.*?)\]/g, "")}
+                      {msg.content}
                     </ReactMarkdown>
-
-                    {/* Rich Interaction Extraction */}
-                    {(() => {
-                      const shortlistRegex = /\[SHORTLIST: (.*?)\]/g;
-                      const lockRegex = /\[LOCK: (.*?)\]/g;
-                      const shortlistMatches = [
-                        ...msg.content.matchAll(shortlistRegex),
-                      ];
-                      const lockMatches = [...msg.content.matchAll(lockRegex)];
-
-                      if (shortlistMatches.length > 0) {
-                        return (
-                          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                            {shortlistMatches.map((match, i) => (
-                              <div
-                                key={i}
-                                className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-3 group hover:border-teal-500/30 transition-all"
-                              >
-                                <div className="flex items-center gap-3">
-                                  <div className="p-2 bg-teal-500/20 rounded-lg text-teal-400">
-                                    <GraduationCap className="w-4 h-4" />
-                                  </div>
-                                  <span className="font-bold text-white text-xs truncate">
-                                    {match[1]}
-                                  </span>
-                                </div>
-                                <button
-                                  onClick={() => {
-                                    fetch("/api/shortlist", {
-                                      method: "POST",
-                                      headers: {
-                                        "Content-Type": "application/json",
-                                      },
-                                      body: JSON.stringify({ name: match[1] }),
-                                    }).then((res) => {
-                                      if (res.ok) {
-                                        showAlert(
-                                          `Shortlisted ${match[1]}!`,
-                                          "success",
-                                        );
-                                        fetchShortlist();
-                                      } else
-                                        showAlert(
-                                          "University not found.",
-                                          "error",
-                                        );
-                                    });
-                                  }}
-                                  className="w-full bg-teal-500 text-navy-900 py-1.5 rounded-lg text-[10px] font-bold hover:bg-primary transition-all flex items-center justify-center gap-2"
-                                >
-                                  <Sparkles className="w-3 h-3" /> ADD TO
-                                  SHORTLIST
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      }
-                      return null;
-                    })()}
                   </div>
                 ) : (
                   msg.content

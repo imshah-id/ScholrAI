@@ -7,100 +7,100 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id           String      @id @default(uuid())
-  email        String      @unique
-  fullName     String
-  passwordHash String
-  createdAt    DateTime    @default(now())
-  profile      Profile?
-  shortlist    Shortlist[]
-  documents    Document[]
-  chatSessions ChatSession[]
+model ChatSession {
+  id        String   @id
+  userId    String
+  title     String
+  messages  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Document {
-  id        String   @id @default(uuid())
+  id        String   @id
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   name      String
-  category  String   @default("General") // "Resume", "SOP", "Transcript"
+  category  String   @default("General")
   mimeType  String
   size      Int
-  data      String   // Base64 storage - Hackathon only!
+  data      String
   createdAt DateTime @default(now())
+  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model GuidanceTask {
+  id          String    @id
+  shortlistId String
+  title       String
+  type        String
+  status      String    @default("pending")
+  dueDate     String?
+  Shortlist   Shortlist @relation(fields: [shortlistId], references: [id], onDelete: Cascade)
+
+  @@index([shortlistId])
 }
 
 model Profile {
-  id                 String  @id @default(uuid())
-  userId             String  @unique
-  user               User    @relation(fields: [userId], references: [id])
-  targetDegree       String
-  targetMajor        String? // e.g. "Computer Science"
+  id                   String  @id
+  userId               String  @unique
+  targetDegree         String
+  targetIntake         String
+  gpa                  String
+  englishTest          String?
+  testScore            String?
+  budget               String
+  preferredCountries   String
+  readinessScore       Int     @default(0)
+  currentStage         String  @default("DISCOVERY")
+  gpaScale             String  @default("4.0")
+  citizenship          String?
+  fieldOfStudy         String?
   highestQualification String?
-  fieldOfStudy       String?
-  citizenship        String?
-  targetIntake       String
-  gpa                String
-  gpaScale           String  @default("4.0")
-  englishTest        String?
-  testScore          String?
-  budget             String
-  preferredCountries String // Stored as JSON string
-  readinessScore     Int     @default(0)
-  currentStage       String  @default("DISCOVERY") // ENUM: "PROFILE", "DISCOVERY", "SHORTLIST", "GUIDANCE"
+  targetMajor          String?
+  User                 User    @relation(fields: [userId], references: [id])
+}
+
+model Shortlist {
+  id           String         @id
+  userId       String
+  universityId String
+  isLocked     Boolean        @default(false)
+  createdAt    DateTime       @default(now())
+  GuidanceTask GuidanceTask[]
+  University   University     @relation(fields: [universityId], references: [id])
+  User         User           @relation(fields: [userId], references: [id])
+
+  @@unique([userId, universityId])
+  @@index([userId])
 }
 
 model University {
-  id             String      @id @default(uuid())
+  id             String      @id
   name           String      @unique
   location       String
   country        String
   rank           Int
   fees           String
   acceptanceRate String
-  tags           String // JSON string of tags
-  shortlistedBy  Shortlist[]
+  tags           String
+  Shortlist      Shortlist[]
 
   @@index([country])
   @@index([location])
   @@index([rank])
 }
 
-model Shortlist {
-  id           String     @id @default(uuid())
-  userId       String
-  user         User       @relation(fields: [userId], references: [id])
-  universityId String
-  university   University @relation(fields: [universityId], references: [id])
-  isLocked     Boolean        @default(false)
-  createdAt    DateTime       @default(now())
-  guidanceTasks GuidanceTask[]
-
-  @@unique([userId, universityId])
-  @@index([userId])
-}
-
-model GuidanceTask {
-  id          String    @id @default(uuid())
-  shortlistId String
-  shortlist   Shortlist @relation(fields: [shortlistId], references: [id], onDelete: Cascade)
-  title       String
-  type        String    // Essay, Admin, Documents
-  status      String    @default("pending") // pending, completed
-  dueDate     String?   // mocked for now, or DateTime
-
-  @@index([shortlistId])
-}
-
-model ChatSession {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title     String
-  messages  String   // Stored as JSON string [ {role: "user", content: "..."}, ... ]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId])
+model User {
+  id           String        @id
+  email        String        @unique
+  fullName     String
+  passwordHash String
+  createdAt    DateTime      @default(now())
+  ChatSession  ChatSession[]
+  Document     Document[]
+  Profile      Profile?
+  Shortlist    Shortlist[]
 }
