@@ -31,7 +31,7 @@ export async function POST(req: Request) {
         fullName,
         email,
         passwordHash: hashedPassword,
-        profile: {
+        Profile: {
           create: {
             targetDegree: "Masters", // Defaults (will be updated in Onboarding)
             targetIntake: "Fall 2026",

@@ -25,6 +25,8 @@ import {
   Plus,
   Mic,
   MicOff,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
@@ -42,6 +44,8 @@ export default function CounsellorPage() {
   const { showAlert } = useAlert();
   const [input, setInput] = useState("");
   const [isListening, setIsListening] = useState(false);
+  const [voiceModeActive, setVoiceModeActive] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   const toggleListening = () => {
     if (isListening) {
@@ -105,6 +109,7 @@ export default function CounsellorPage() {
   const [showClearHistoryConfirm, setShowClearHistoryConfirm] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   const thinkingSteps = [
     "Analyzing your profile data...",
@@ -113,6 +118,54 @@ export default function CounsellorPage() {
     "Checking scholarship availability...",
     "Synthesizing personalized advice...",
   ];
+
+  // Text-to-Speech Function
+  const speakText = (text: string, callback?: () => void) => {
+    if ("speechSynthesis" in window) {
+      // Cancel any ongoing speech
+      window.speechSynthesis.cancel();
+      setIsSpeaking(true);
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utteranceRef.current = utterance;
+
+      // Select natural-sounding voice
+      const voices = window.speechSynthesis.getVoices();
+      const preferredVoice =
+        voices.find((v) => v.name.includes("Natural")) ||
+        voices.find((v) => v.name.includes("Google US English")) ||
+        voices.find((v) => v.name.includes("Microsoft Zira")) ||
+        voices.find((v) => v.name.includes("Samantha")) ||
+        voices.find((v) => v.lang.startsWith("en-"));
+
+      if (preferredVoice) utterance.voice = preferredVoice;
+
+      utterance.pitch = 1.0;
+      utterance.rate = 1.1;
+
+      utterance.onend = () => {
+        setIsSpeaking(false);
+        if (callback) setTimeout(callback, 200);
+      };
+
+      utterance.onerror = (e) => {
+        console.error("Speech Synthesis Error", e);
+        setIsSpeaking(false);
+        if (callback) callback();
+      };
+
+      window.speechSynthesis.speak(utterance);
+    } else {
+      if (callback) callback();
+    }
+  };
+
+  const stopSpeaking = () => {
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    }
+  };
 
   useEffect(() => {
     fetchProfile();
@@ -319,6 +372,11 @@ export default function CounsellorPage() {
         { id: aiMsgId, role: "ai", content: aiReply },
       ];
       saveChatToDB(updatedMessages);
+
+      // Auto-speak if voice mode is active
+      if (voiceModeActive && aiReply) {
+        speakText(aiReply);
+      }
     } catch (e: any) {
       console.error(e);
       showAlert(e.message || "Chat failed", "error");
@@ -477,14 +535,70 @@ export default function CounsellorPage() {
                 </span>
               </h2>
               <div className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-[10px] text-gray-400 uppercase tracking-tighter">
-                  Acting as {activePersona}
-                </span>
+                {isSpeaking ? (
+                  <>
+                    <div className="flex gap-0.5">
+                      <div className="w-1 h-2 bg-teal-400 rounded animate-[bounce_0.6s_ease-in-out_infinite]" />
+                      <div className="w-1 h-3 bg-teal-400 rounded animate-[bounce_0.6s_ease-in-out_0.1s_infinite]" />
+                      <div className="w-1 h-2 bg-teal-400 rounded animate-[bounce_0.6s_ease-in-out_0.2s_infinite]" />
+                    </div>
+                    <span className="text-[10px] text-teal-400 uppercase tracking-tighter font-medium">
+                      Speaking...
+                    </span>
+                  </>
+                ) : voiceModeActive ? (
+                  <>
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />
+                    <span className="text-[10px] text-teal-400 uppercase tracking-tighter">
+                      Voice Mode Active
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                    <span className="text-[10px] text-gray-400 uppercase tracking-tighter">
+                      Acting as {activePersona}
+                    </span>
+                  </>
+                )}
               </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Voice Mode Toggle */}
+            <button
+              onClick={() => {
+                setVoiceModeActive(!voiceModeActive);
+                if (voiceModeActive) {
+                  // Turning off - stop any ongoing speech
+                  stopSpeaking();
+                }
+              }}
+              className={`p-2 rounded-lg transition-all ${
+                voiceModeActive
+                  ? "bg-teal-500/20 text-teal-400 border border-teal-500/30"
+                  : "text-gray-400 hover:text-white hover:bg-white/5"
+              }`}
+              title={voiceModeActive ? "Voice Mode: ON" : "Voice Mode: OFF"}
+            >
+              {voiceModeActive ? (
+                <Volume2 className="w-4 h-4" />
+              ) : (
+                <VolumeX className="w-4 h-4" />
+              )}
+            </button>
+
+            {/* Stop Speaking Button (only show when speaking) */}
+            {isSpeaking && (
+              <button
+                onClick={stopSpeaking}
+                className="p-2 hover:bg-red-500/20 text-red-400 rounded-lg transition-all animate-pulse"
+                title="Stop Speaking"
+              >
+                <VolumeX className="w-4 h-4" />
+              </button>
+            )}
+
             <button
               onClick={clearAllHistory}
               className="text-gray-400 hover:text-white p-2 hover:bg-white/5 rounded-lg transition-colors"
